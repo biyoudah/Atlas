@@ -34,6 +34,7 @@ public static class Program
                 "diff-live" => await HandleDiffLiveAsync(subArgs).ConfigureAwait(false),
                 "dashboard" => await HandleDashboardAsync(subArgs).ConfigureAwait(false),
                 "serve" => await HandleServeAsync(subArgs).ConfigureAwait(false),
+                "mcp" => await HandleMcpAsync(subArgs).ConfigureAwait(false),
                 _ => HandleUnknownCommand(command)
             };
         }
@@ -49,7 +50,7 @@ public static class Program
     private static void PrintUsage()
     {
         Console.WriteLine("""
-            Atlas — OPC UA Discovery & Catalog Generator Engine v1.0.0
+            Atlas — OPC UA Discovery & Catalog Generator Engine v1.1.0
 
             USAGE:
               atlas <command> [options]
@@ -60,6 +61,7 @@ public static class Program
               diff-live <endpoint-url>          Compare anonymous vs authenticated view on live PLC
               dashboard <catalog.json>          Generate turnkey Grafana v10 JSON dashboard
               serve <endpoint-url>              Serve Prometheus metrics (/metrics) & WebSocket gateway (/ws)
+              mcp                               Run native Model Context Protocol (MCP) server over stdio
 
             CRAWL OPTIONS:
               -u, --user <username>             Username for authentication (default: anonymous)
@@ -82,6 +84,15 @@ public static class Program
               --pack <fileOrName>               Mapping pack (e.g. siemens-s7-1500, fanuc-31i)
               --catalog <file.json>             Load pre-crawled catalog (offline simulation mode)
               --allow-write <nodeId>            Allowlist a node for remote writes (audit logged)
+              --of-id <id>                      MES Work Order / OF ID (e.g. OF-2026-9481)
+              --part-number <sku>               Work Order Part Number (e.g. VALVE-50)
+              --target-parts <count>            Target parts quantity to produce
+              --target-cycle-time <sec>         Nominal ideal cycle time in seconds
+
+            MCP OPTIONS:
+              --catalog <file.json>             Load catalog JSON for offline MCP inspection
+              --endpoint <url>                  OPC UA endpoint to crawl for live MCP session
+              --pack <fileOrName>               Mapping pack to apply for semantic labeling
 
             DIFF OPTIONS:
               -f, --format <markdown|json>      Diff report format (default: markdown)
@@ -390,6 +401,13 @@ public static class Program
         string? packName = null;
         var allowList = new List<string>();
 
+        string? ofId = null;
+        string? partNumber = null;
+        int targetParts = 0;
+        double targetCycleSec = 0;
+        double plannedMin = 480;
+        int scrapParts = 0;
+
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -401,6 +419,12 @@ public static class Program
             else if (arg is "-p" or "--password" && i + 1 < args.Length) password = args[++i];
             else if (arg is "--pack" && i + 1 < args.Length) packName = args[++i];
             else if (arg is "--allow-write" && i + 1 < args.Length) allowList.Add(args[++i]);
+            else if (arg is "--of-id" && i + 1 < args.Length) ofId = args[++i];
+            else if (arg is "--part-number" && i + 1 < args.Length) partNumber = args[++i];
+            else if (arg is "--target-parts" && i + 1 < args.Length) int.TryParse(args[++i], out targetParts);
+            else if (arg is "--target-cycle-time" && i + 1 < args.Length) double.TryParse(args[++i], System.Globalization.CultureInfo.InvariantCulture, out targetCycleSec);
+            else if (arg is "--planned-minutes" && i + 1 < args.Length) double.TryParse(args[++i], System.Globalization.CultureInfo.InvariantCulture, out plannedMin);
+            else if (arg is "--scrap-parts" && i + 1 < args.Length) int.TryParse(args[++i], out scrapParts);
         }
 
         AtlasCatalog catalog;
@@ -445,10 +469,26 @@ public static class Program
             }
         }
 
+        // Optional MES Work Order Context
+        Mes.WorkOrderContext? workOrder = null;
+        if (!string.IsNullOrEmpty(ofId) || targetParts > 0)
+        {
+            workOrder = new Mes.WorkOrderContext
+            {
+                OrderId = ofId ?? "OF-LIVE",
+                PartNumber = partNumber ?? "PART-001",
+                TargetQuantity = targetParts > 0 ? targetParts : 500,
+                NominalCycleTimeSeconds = targetCycleSec > 0 ? targetCycleSec : 45.0,
+                PlannedProductionMinutes = plannedMin > 0 ? plannedMin : 480.0,
+                DeclaredScrapParts = scrapParts
+            };
+            Console.Error.WriteLine($"Initialized MES Work Order context: {workOrder.OrderId} (Target: {workOrder.TargetQuantity} parts, Nominal Cycle: {workOrder.NominalCycleTimeSeconds}s)");
+        }
+
         var multiplexer = new SubscriptionMultiplexer(catalog, session, writeAllowlist: allowList);
         await multiplexer.StartAutoMonitoringAsync().ConfigureAwait(false);
         string prefix = $"http://localhost:{port}/";
-        await using var server = new AtlasServer(catalog, multiplexer, prefix, machine);
+        await using var server = new AtlasServer(catalog, multiplexer, prefix, machine, workOrder: workOrder);
 
         server.Start();
 
@@ -460,6 +500,7 @@ public static class Program
              - Prometheus Metrics: {prefix}metrics
              - Address Space Catalog: {prefix}catalog
              - Health Status:      {prefix}health
+             - MES Reconciliation: {prefix}reconciliation
              - WebSocket Stream:   ws://localhost:{port}/ws
             ========================================================================
             Press Ctrl+C to terminate.
@@ -475,6 +516,78 @@ public static class Program
 
         await tcs.Task;
         Console.WriteLine("\nShutting down Atlas server...");
+        return 0;
+    }
+
+    private static async Task<int> HandleMcpAsync(string[] args)
+    {
+        string? catalogFile = null;
+        string? endpointUrl = null;
+        string? user = null;
+        string? password = null;
+        string? packName = null;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i];
+            if (arg.StartsWith("opc.tcp://", StringComparison.OrdinalIgnoreCase)) endpointUrl = arg;
+            else if (arg is "--endpoint" && i + 1 < args.Length) endpointUrl = args[++i];
+            else if (arg is "--catalog" && i + 1 < args.Length) catalogFile = args[++i];
+            else if (arg is "-u" or "--user" && i + 1 < args.Length) user = args[++i];
+            else if (arg is "-p" or "--password" && i + 1 < args.Length) password = args[++i];
+            else if (arg is "--pack" && i + 1 < args.Length) packName = args[++i];
+        }
+
+        AtlasCatalog catalog;
+        ManagedSession? session = null;
+        SubscriptionMultiplexer? multiplexer = null;
+
+        if (!string.IsNullOrEmpty(catalogFile) && File.Exists(catalogFile))
+        {
+            string json = await File.ReadAllTextAsync(catalogFile).ConfigureAwait(false);
+            catalog = JsonSerializer.Deserialize<AtlasCatalog>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            multiplexer = new SubscriptionMultiplexer(catalog);
+        }
+        else if (!string.IsNullOrEmpty(endpointUrl))
+        {
+            session = await AtlasClientHelper.ConnectAsync(endpointUrl, user, password).ConfigureAwait(false);
+            var crawler = new AtlasCrawler(session);
+            catalog = await crawler.CrawlAsync().ConfigureAwait(false);
+            multiplexer = new SubscriptionMultiplexer(catalog, session);
+            await multiplexer.StartAutoMonitoringAsync().ConfigureAwait(false);
+        }
+        else if (File.Exists("catalog.json"))
+        {
+            string json = await File.ReadAllTextAsync("catalog.json").ConfigureAwait(false);
+            catalog = JsonSerializer.Deserialize<AtlasCatalog>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            multiplexer = new SubscriptionMultiplexer(catalog);
+        }
+        else
+        {
+            // Empty initialized catalog ready for MCP queries / mapping pack creation
+            catalog = new AtlasCatalog
+            {
+                Metadata = new CatalogMetadata
+                {
+                    EndpointUrl = "opc.tcp://localhost:4840",
+                    ServerUri = "urn:atlas:mcp:session",
+                    CrawledAtUtc = DateTime.UtcNow
+                },
+                Entries = []
+            };
+        }
+
+        if (!string.IsNullOrEmpty(packName))
+        {
+            var pack = MappingPackLoader.ResolvePack(packName);
+            if (pack != null)
+            {
+                SemanticLabeler.LabelCatalog(catalog, mappingPack: pack);
+            }
+        }
+
+        var mcpServer = new Mcp.AtlasMcpServer(catalog, multiplexer);
+        await mcpServer.RunAsync().ConfigureAwait(false);
         return 0;
     }
 }

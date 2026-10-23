@@ -1,86 +1,59 @@
-# 🌐 Atlas — Industrial OPC UA Discovery & Turnkey Visualization Engine
+# 🌐 Atlas — Industrial OPC UA Discovery, Diagnostics & Turnkey Visualization Engine
 
 [![Build & Test](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/Tests-60%2F60%20Passing-brightgreen.svg)]()
 [![Standard](https://img.shields.io/badge/OPC_UA-v2.0-orange.svg)](https://opcfoundation.org/)
+[![MTConnect](https://img.shields.io/badge/Taxonomy-MTConnect%20Tri--Fold-blueviolet.svg)]()
+[![MCP](https://img.shields.io/badge/AI-Model%20Context%20Protocol%20(MCP)-blue.svg)]()
 
-**Atlas** is an open-source discovery, profiling, and visualization engine for industrial OPC UA servers. It crawls undocumented PLC address spaces, unmasks hidden tags, decodes complex structures, resolves cryptic vendor registers (`DB10.Var_27`) into standardized semantics, and generates turnkey Grafana dashboards and Prometheus metrics in seconds.
+**Atlas** is an open-source discovery, profiling, industrial robustness, and visualization engine for OPC UA controllers. It crawls undocumented PLC/CNC address spaces, decodes complex dynamic structures, unmasks hidden registers, categorizes signals into ANSI/MTConnect taxonomy, reconciles IT MES work orders with OT signals to compute real-time OEE/TRS, guards against network micro-cuts and PLC counter resets, and serves turnkey Grafana dashboards, Prometheus metrics, and native Model Context Protocol (MCP) tool endpoints for AI assistants.
 
 ---
 
 ## ⚡ Why Atlas? (Breaking the Industrial Vendor Moat)
 
-Industrial automation has a data accessibility problem:
-* **The "Cryptic Tag" Lock-in:** Programmable controllers (Siemens S7-1500, Fanuc, Mitsubishi) expose registers as `ns=3;s="DB10"."Var_27"`. Vendors push customers to buy expensive proprietary engineering tools (TIA Portal, GX Works, Fanuc CNC Screen) or hire certified integrators just to know what a variable means.
-* **The "Middleware Tax":** Industrial middleware gateways (Kepware, Matricon, Siemens Industrial Edge) cost **$3,000 to $25,000+ per machine** in runtime licenses just to get data onto an open-source dashboard.
-* **Hardware Session Limits:** PLCs and CNC controllers run on constrained embedded CPUs that often crash or refuse connections after **2 to 5 concurrent OPC UA sessions**.
-* **Hidden Registers:** Plant owners frequently cannot see maintenance calibration data, cycle efficiency metrics, or vibration limits because integrators lock them behind password-protected blocks.
+Industrial automation has a severe data accessibility and reliability problem:
+* **The "Cryptic Tag" Lock-in:** Controllers (Siemens S7-1500/840D, Fanuc 31i, Mitsubishi) expose registers as `ns=3;s="DB10"."Var_27"`. Vendors push customers to buy expensive proprietary software or pay certified integrators just to know what a variable means.
+* **The "Middleware Tax":** Industrial middleware gateways (Kepware, Matrikon, Siemens Industrial Edge) charge **$3,000 to $25,000+ per machine** in runtime licenses just to get data onto an open-source dashboard.
+* **Hardware Session Bottlenecks:** Constrained PLC and CNC embedded CPUs crash or refuse connections after **2 to 5 concurrent OPC UA sessions**.
+* **Industrial Network Micro-Cuts:** Transient shop-floor packet drops cause naive collectors to flap between `Good` and `Bad`, dropping metrics and triggering false alerts.
+* **PLC Counter Resets:** Operators resetting daily counters at shift change create negative rate spikes in downstream time-series databases.
+* **Gateway vs. Machine Disconnect Ambiguity:** When data stops arriving, operations cannot tell whether the CNC crashed or the edge network bridge went down.
 
-**Atlas eliminates these barriers completely:**
-1. **Open Community Mapping Packs:** A community repository of regex rules that map raw PLC addresses to human-readable names (`spindle_speed`, `parts_produced`, `coolant_pressure`). Map a machine model once, and everyone benefits.
+**Atlas eliminates all these barriers:**
+1. **Open Community Mapping Packs:** A community repository of regex rules that map raw PLC addresses to human-readable names (`spindle_speed`, `parts_produced`, `coolant_pressure`).
 2. **One Session, Infinite Viewers:** Atlas maintains **one single persistent connection** to the machine controller and multiplexes data to hundreds of dashboards, Prometheus scrapers, and web clients simultaneously.
-3. **Turnkey Grafana Dashboards:** One CLI command auto-generates a ready-to-import Grafana v10 dashboard with EURange gauges, stat cards, and state timelines.
-4. **Cross-Identity Audit (`diff-live`):** Crawls the controller anonymously, crawls it with credentials, and generates an audit report exposing every hidden tag and elevated permission.
-5. **Hard Industrial Safety Shield:** Network writes default to strict read-only. Writes to `EmergencyStop` or safety registers are **permanently blocked** at the protocol boundary.
+3. **QualityGuard & Robustness Hysteresis:** Network micro-cut smoothing (mark `Uncertain` before `Bad`), stale-frame detection (`opcua_data_stale` gauge), and monotonic counter protection against PLC resets.
+4. **MTConnect-Style Tri-Fold Semantics:** Classifies every tag into `Sample` (analog kinetics), `Event` (discrete states/counters), or `Condition` (alarms/interlocks).
+5. **MES Work Order & Real-Time OEE/TRS Engine:** Reconciles machine telemetry with declared production orders (`OF-2026-9481`) to compute live Availability, Performance, Quality, and Overall TRS.
+6. **Logistics & Physics-Informed Synthetic Metrics:** Calculates Time-to-Starvation ($\text{Stock} \times \text{CycleTime}$), Spindle Thermal Drift ($\Delta^\circ\text{C}$), and Tool Wear Urgency ratio in real time.
+7. **Collector Self-Supervision Diagnostics:** Exposes gateway health metrics (`atlas_collector_uptime_seconds`, `atlas_collector_scrape_latency_seconds`, `atlas_collector_read_errors_total`, `atlas_machine_connected`).
+8. **Native Model Context Protocol (MCP) Server (`atlas mcp`):** Allows Claude, Cursor, and AI coding assistants to query the address space, inspect tags, calculate OEE, and author mapping packs in natural language.
+9. **Turnkey Grafana Dashboards:** One CLI command auto-generates a ready-to-import Grafana v10 dashboard organized by MTConnect categories.
 
 ---
 
-## 🏗️ Architecture & The 5 Pipeline Stages
+## 🏗️ Architecture & Pipeline Stages
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                   5-STAGE ATLAS DISCOVERY & SERVING PIPELINE           │
+│                   ATLAS INDUSTRIAL DISCOVERY & SERVING PIPELINE        │
 └────────────────────────────────────────────────────────────────────────┘
   [Stage 1] Exhaustive Crawl (Batched Reads + Stable URI IDs + XML/JSON/CSV)
       │
   [Stage 2] ExtensionObject Type Decoding (Complex Types -> Dotted Paths)
       │
-  [Stage 3] Passive Live Profiler (Signal Classification + Correlations)
+  [Stage 3] Passive Live Profiler & Identity Differ (Signal Classification & Cross-Role Diff)
       │
-  [Stage 4] Semantic Labeler & Mapping Packs (Confidence Scores & Provenance)
+  [Stage 4] Semantic Labeler & MTConnect Taxonomy (Sample / Event / Condition)
       │
-  [Stage 5] Serving Layer (Prometheus /metrics + WebSocket /ws + Grafana v10)
+  [Stage 5] Robustness Guard & Quality Hysteresis (QualityGuard: Micro-cuts, Staleness, Counter Reset)
+      │
+  [Stage 6] MES & Logistics Synthetic Metrics Engine (OEE/TRS + Time-To-Starvation + Thermal Drift)
+      │
+  [Stage 7] Multi-Channel Serving Layer (Prometheus /metrics + WebSocket /ws + MCP stdio + Grafana v10)
 ```
-
-### Stage 1: Exhaustive Discovery & Stable URIs
-- Recursively browses hierarchical and non-hierarchical references (`HasTypeDefinition`, `Organizes`, `HasComponent`).
-- Batches attribute reads (`BrowseName`, `DisplayName`, `DataType`, `ValueRank`, `AccessLevel`, `UserAccessLevel`, `EURange`, `EngineeringUnits`).
-- Mints permanent URI-based identifiers (`nsu=http://vendor.com/plc/;s=DB10.Var_27`) instead of fragile numeric indices (`ns=3`), which change upon PLC reboot or code download.
-- Exports to **JSON**, **CSV**, and standard OPC UA Part 6 `<UANodeSet>` XML.
-
-### Stage 2: Complex Type Decoding & Flattening
-- Resolves dynamic `ExtensionObject` structures at runtime without compiled C# types by reading `DataTypeDefinition` attributes.
-- Flattens nested records into dot-notation paths (e.g. `Axis[0].ActualPosition`, `ToolData.Geometry.LengthOffset`).
-
-### Stage 3: Passive Live Profiling & Cross-Identity Diffing
-- Subscribes passively to live signals and categorizes them into:
-  - `Counter`: Monotonically increasing numbers (part counters).
-  - `Analog`: Continuously variable physical quantities (spindle speed, pressure, temperature).
-  - `Discrete State`: String/enum execution indicators (`ACTIVE`, `STOPPED`, `FEED_HOLD`).
-  - `Constant`: Read-only configuration constants.
-- **`diff-live` Engine:** Compares the address space between Anonymous and Authenticated roles (e.g., Operator or Admin) to detect paywalled or hidden data blocks.
-
-### Stage 4: Semantic Labeling & Community Mapping Packs
-- Labels nodes with a 4-tier confidence score ($0.0$ to $1.0$) and transparent evidence provenance.
-- Built-in community packs for:
-  - `siemens-s7-1500-sinumerik` (Siemens S7-1500 & Sinumerik 840D)
-  - `fanuc-31i` (Fanuc 30i/31i/32i Series CNCs)
-  - `mitsubishi-m800` (Mitsubishi M800/M80 Series CNCs)
-- Custom user packs can be dropped into the `Packs/` folder as JSON/YAML files.
-
-### Stage 5: Serving Layer & Turnkey Dashboards
-- **Prometheus Exporter (`/metrics`):**
-  - Incorporates units directly into metric names: `_rpm`, `_bar`, `_celsius`, `_total`, `_seconds`.
-  - State-set metric format: Emits string states as binary indicators (`opcua_actprog{state="..."} 1`), **preventing time-series churn**.
-- **Multiplexed WebSocket (`/ws`):**
-  - Push-based JSON streaming of live telemetry.
-  - Subscriptions over messages (`{"action":"subscribe","nodes":[...]}`) instead of messy query strings.
-- **Industrial Safety Gate:**
-  - Strict read-only default.
-  - Permanent block on Emergency Stop and safety-critical tags.
-  - Explicit allowlisting with client ID audit logging.
-- **Grafana v10 Dashboard Generator:** Auto-generates fully styled dark-mode dashboards with stat cards, EURange gauges, time-series graphs, and state timelines.
 
 ---
 
@@ -96,7 +69,7 @@ cd Atlas
 dotnet build Atlas.slnx
 ```
 
-### 2. Run the Automated Tests (44 Tests)
+### 2. Run the Automated Tests (60 Tests)
 ```bash
 dotnet test tests/Opc.Ua.Atlas.Tests/Opc.Ua.Atlas.Tests.csproj
 ```
@@ -136,14 +109,56 @@ dotnet run --project src/Opc.Ua.Atlas -- dashboard catalog.json \
   --machine "cnc_mill_01"
 ```
 
-### 4. Run the Serving Layer (Prometheus + WebSocket)
+### 4. Run the Serving Layer (Prometheus + WebSocket + MES OEE)
 ```bash
 dotnet run --project src/Opc.Ua.Atlas -- serve opc.tcp://192.168.1.50:4840 \
   --port 9090 \
   --machine "cnc_mill_01" \
   --pack siemens-s7-1500 \
+  --of-id "OF-2026-9481" \
+  --part-number "VALVE-BODY-50" \
+  --target-parts 500 \
+  --target-cycle-time 45.0 \
   --allow-write "nsu=http://opcfoundation.org/UA/CNC/;s=SpindleOverride"
 ```
+
+### 5. Run Native Model Context Protocol (MCP) Server for AI Assistants
+```bash
+# Connect directly to Claude Desktop, Cursor, or Antigravity via stdio
+dotnet run --project src/Opc.Ua.Atlas -- mcp --catalog catalog.json
+```
+
+---
+
+## 🤖 AI Assistant Integration via Model Context Protocol (MCP)
+
+Atlas implements a native Model Context Protocol (MCP) server over stdio (`atlas mcp`). Add Atlas to your Claude Desktop or Cursor configuration:
+
+```json
+{
+  "mcpServers": {
+    "atlas-opcua": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "/path/to/Atlas/src/Opc.Ua.Atlas",
+        "--",
+        "mcp",
+        "--catalog",
+        "/path/to/catalog.json"
+      ]
+    }
+  }
+}
+```
+
+### Available MCP Tools:
+- **`search_address_space`**: Search nodes by keyword, browse path, or MTConnect category (`Sample`, `Event`, `Condition`).
+- **`read_node_value`**: Read current live telemetry, quality status (`Good`, `Uncertain`, `Bad`), and staleness.
+- **`get_machine_health`**: Get edge gateway diagnostics, latency, read error counts, and active interlocks/alarms.
+- **`calculate_oee`**: Reconcile live OT production counters with an MES work order to calculate real-time Availability, Performance, Quality, and TRS/OEE.
+- **`generate_mapping_pack`**: Generate standardized Atlas JSON mapping packs using natural language instructions.
 
 ---
 
@@ -161,7 +176,7 @@ dotnet run --project src/Opc.Ua.Atlas -- crawl opc.tcp://localhost:62541/FakeCnc
 
 ---
 
-## 📊 Live Metrics & WebSocket Protocol
+## 📊 Live Metrics & Serving Endpoints
 
 ### Prometheus (`GET /metrics`)
 ```prometheus
@@ -173,82 +188,85 @@ opcua_spindle_speed_rpm{machine="cnc_mill_01",node_id="nsu=http://opcfoundation.
 # TYPE opcua_parts_produced_total counter
 opcua_parts_produced_total{machine="cnc_mill_01",node_id="nsu=http://opcfoundation.org/UA/CNC/;s=PartsProduced"} 142
 
-# HELP opcua_coolant_pressure_bar coolant_pressure telemetry reading
-# TYPE opcua_coolant_pressure_bar gauge
-opcua_coolant_pressure_bar{machine="cnc_mill_01",node_id="nsu=http://opcfoundation.org/UA/CNC/;s=CoolantPressure"} 22.85
+# HELP opcua_spindle_thermal_drift_celsius Spindle thermal elongation drift relative to ambient baseline
+# TYPE opcua_spindle_thermal_drift_celsius gauge
+opcua_spindle_thermal_drift_celsius{machine="cnc_mill_01"} 16.5
 
-# HELP opcua_actprog Discrete state indicator (1=active, 0=inactive)
-# TYPE opcua_actprog gauge
-opcua_actprog{machine="cnc_mill_01",node_id="nsu=http://siemens.com/simatic-s7-1500/cnc/;s=\"DB20_Production\".\"ActProg\"",state="O1024_TURBINE_BLADE_5AXIS.NC"} 1
+# HELP opcua_time_to_starvation_seconds Time remaining until pallet stock starvation based on active cycle time
+# TYPE opcua_time_to_starvation_seconds gauge
+opcua_time_to_starvation_seconds{machine="cnc_mill_01"} 450.0
+
+# HELP opcua_oee_overall_ratio Overall Equipment Effectiveness ratio (0.0 to 1.0)
+# TYPE opcua_oee_overall_ratio gauge
+opcua_oee_overall_ratio{machine="cnc_mill_01",order_id="OF-2026-9481",part_number="VALVE-BODY-50"} 0.7667
+
+# HELP atlas_collector_uptime_seconds Atlas edge collector uptime in seconds
+# TYPE atlas_collector_uptime_seconds counter
+atlas_collector_uptime_seconds{machine="cnc_mill_01"} 3600.5
+
+# HELP atlas_machine_connected Machine connectivity status (1=connected, 0=disconnected)
+# TYPE atlas_machine_connected gauge
+atlas_machine_connected{machine="cnc_mill_01"} 1
 ```
 
-### WebSocket Stream (`ws://localhost:9090/ws`)
-
-#### 1. Subscribe to nodes:
-```json
-{"action":"subscribe","nodes":["nsu=http://opcfoundation.org/UA/CNC/;s=ActualSpeed"]}
-```
-**Server Response & Stream:**
-```json
-{"event":"subscribed","count":1,"nodes":["nsu=http://opcfoundation.org/UA/CNC/;s=ActualSpeed"]}
-{"event":"value","id":"nsu=http://opcfoundation.org/UA/CNC/;s=ActualSpeed","browseName":"ActualSpeed","label":"spindle_speed","confidence":1,"value":10004.0,"unit":"rpm","timestamp":"2026-10-23T22:40:24Z"}
-```
-
-#### 2. Safety Interception (Attempting write to Emergency Stop):
-```json
-{"action":"write","node":"nsu=http://opcfoundation.org/UA/CNC/;s=EmergencyStop","value":true}
-```
-**Server Rejection:**
+### Health & Self-Supervision (`GET /health`)
 ```json
 {
-  "event": "write_result",
-  "node": "nsu=http://opcfoundation.org/UA/CNC/;s=EmergencyStop",
-  "success": false,
-  "message": "Rejected: Hard safety violation. Emergency stop and safety nodes cannot be written via network gateway."
+  "status": "UP",
+  "serverUri": "urn:rotarex:cnc:milling01",
+  "collector": {
+    "uptimeSeconds": 3600.5,
+    "scrapeLatencyMs": 4.25,
+    "readErrorsTotal": 0,
+    "reconnectsTotal": 0,
+    "monitoredItemsActive": 42
+  },
+  "machine": {
+    "connected": true,
+    "catalogEntries": 328,
+    "staleSignalsCount": 0
+  },
+  "connectedWsClients": 3,
+  "readOnly": true
 }
 ```
 
----
-
-## 🛠️ Community Mapping Pack Specification
-
-Creating a mapping pack for your machine takes less than 20 lines of JSON/YAML:
-
+### MES Reconciliation (`GET /reconciliation`)
 ```json
 {
-  "name": "my-custom-lathe-pack",
-  "description": "Mapping profile for Okuma / Siemens lathe",
-  "rules": [
-    {
-      "pattern": "DB10\\.Var_27|ActualSpindle",
-      "label": "spindle_speed",
-      "unit": "rpm",
-      "description": "Main Lathe Spindle RPM"
-    },
-    {
-      "pattern": "DB20\\.PartCounter",
-      "label": "parts_produced",
-      "unit": "total",
-      "description": "Good parts counter"
-    }
-  ]
+  "orderId": "OF-2026-9481",
+  "partNumber": "VALVE-BODY-50",
+  "availability": 0.8889,
+  "performance": 0.875,
+  "quality": 0.9857,
+  "oeeOverall": 0.7667,
+  "targetQuantity": 500,
+  "totalPartsProduced": 350,
+  "goodPartsProduced": 345,
+  "scrapPartsProduced": 5,
+  "completionPercent": 70.0,
+  "estimatedTimeToCompleteSeconds": 9000.0
 }
 ```
-
-Drop the file into `src/Opc.Ua.Atlas/Packs/` and use it via `--pack my-custom-lathe-pack`.
 
 ---
 
 ## 🛡️ Test Proof & Verification
 
-| Test Suite | Tests | Result | Coverage |
+| Test Suite | Tests | Result | Domain Capabilities Verified |
 |---|---|---|---|
 | `CrawlerAndCatalogTests` | 10 | **PASSED** | Batched reads, stable URI IDs, JSON/CSV/XML exports |
 | `TypeDecodingAndFlatteningTests` | 7 | **PASSED** | ExtensionObject runtime decoding, struct flattening |
 | `LiveProfilerTests` | 9 | **PASSED** | Passive signal classification, correlation matrix |
 | `SemanticLabelerTests` | 7 | **PASSED** | Confidence provenance, regex mapping packs |
 | `PrometheusAndDashboardTests` | 11 | **PASSED** | Prometheus exposition, state-sets, Grafana v10 schema |
-| **Total** | **44** | **100% PASS** | End-to-end integration verified |
+| `QualityGuardTests` | 3 | **PASSED** | Micro-cut hysteresis (Uncertain before Bad), monotonic counter smoothing, staleness timeout |
+| `SignalCategoryAndSemanticsTests` | 3 | **PASSED** | ANSI/MTConnect taxonomy (Sample, Event, Condition), mapping pack override, JSON serialization |
+| `SyntheticMetricsTests` | 2 | **PASSED** | Spindle thermal drift ($\Delta^\circ\text{C}$), time-to-starvation, tool wear urgency |
+| `OeeCalculatorTests` | 2 | **PASSED** | Reconciled Availability, Performance, Quality, TRS calculation, ETA estimation |
+| `CollectorDiagnosticsTests` | 2 | **PASSED** | Self-supervision diagnostics, latency, read error counters, connectivity flag |
+| `AtlasMcpServerTests` | 4 | **PASSED** | JSON-RPC 2.0 stdio protocol, tool discovery, address space search, live OEE, mapping pack authoring |
+| **Total** | **60** | **100% PASS** | **End-to-End Industrial Reliability Verified** |
 
 ---
 

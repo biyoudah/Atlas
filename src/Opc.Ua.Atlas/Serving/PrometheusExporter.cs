@@ -23,7 +23,11 @@ public static class PrometheusExporter
     /// </summary>
     public static string SerializeMetrics(
         IReadOnlyDictionary<string, (CatalogEntry Entry, object? Value)> liveSnapshot,
-        string machineName = "default_machine")
+        string machineName = "default_machine",
+        QualityGuard? qualityGuard = null,
+        SyntheticMetricsEngine? syntheticEngine = null,
+        Mes.OeeResult? oeeResult = null,
+        CollectorDiagnostics? diagnostics = null)
     {
         var sb = new StringBuilder();
         var writtenHelp = new HashSet<string>(StringComparer.Ordinal);
@@ -82,6 +86,129 @@ public static class PrometheusExporter
                 string formattedVal = numVal.ToString("G", CultureInfo.InvariantCulture);
                 sb.AppendLine($"{metricName}{{machine=\"{machineName}\",node_id=\"{safeId}\"}} {formattedVal}");
             }
+        }
+
+        // 1. Synthetic Metrics (e.g. Spindle Thermal Drift, Time-to-Starvation, Tool Wear)
+        if (syntheticEngine != null)
+        {
+            var syntheticMetrics = syntheticEngine.ComputeMetrics(liveSnapshot);
+            foreach (var syn in syntheticMetrics)
+            {
+                if (writtenHelp.Add(syn.MetricName))
+                {
+                    sb.AppendLine($"# HELP {syn.MetricName} {syn.Description}");
+                    sb.AppendLine($"# TYPE {syn.MetricName} gauge");
+                }
+                string formatted = syn.Value.ToString("G", CultureInfo.InvariantCulture);
+                sb.AppendLine($"{syn.MetricName}{{machine=\"{machineName}\"}} {formatted}");
+            }
+        }
+
+        // 2. Telemetry Staleness / Quality Guard flags
+        if (qualityGuard != null)
+        {
+            var records = qualityGuard.GetAllRecords();
+            if (records.Count > 0)
+            {
+                if (writtenHelp.Add("opcua_data_stale"))
+                {
+                    sb.AppendLine("# HELP opcua_data_stale Staleness indicator (1=stale/timeout, 0=fresh)");
+                    sb.AppendLine("# TYPE opcua_data_stale gauge");
+                }
+
+                foreach (var (nid, rec) in records)
+                {
+                    string safeId = nid.Replace("\"", "\\\"");
+                    sb.AppendLine($"opcua_data_stale{{machine=\"{machineName}\",node_id=\"{safeId}\"}} {(rec.IsStale ? "1" : "0")}");
+                }
+            }
+        }
+
+        // 3. MES / Real-Time OEE Metrics
+        if (oeeResult != null)
+        {
+            string orderLabel = $"machine=\"{machineName}\",order_id=\"{oeeResult.OrderId}\",part_number=\"{oeeResult.PartNumber}\"";
+
+            if (writtenHelp.Add("opcua_oee_overall_ratio"))
+            {
+                sb.AppendLine("# HELP opcua_oee_overall_ratio Overall Equipment Effectiveness ratio (0.0 to 1.0)");
+                sb.AppendLine("# TYPE opcua_oee_overall_ratio gauge");
+            }
+            sb.AppendLine($"opcua_oee_overall_ratio{{{orderLabel}}} {oeeResult.OeeOverall.ToString("F4", CultureInfo.InvariantCulture)}");
+
+            if (writtenHelp.Add("opcua_oee_availability_ratio"))
+            {
+                sb.AppendLine("# HELP opcua_oee_availability_ratio Availability ratio (Operating Time / Planned Time)");
+                sb.AppendLine("# TYPE opcua_oee_availability_ratio gauge");
+            }
+            sb.AppendLine($"opcua_oee_availability_ratio{{{orderLabel}}} {oeeResult.Availability.ToString("F4", CultureInfo.InvariantCulture)}");
+
+            if (writtenHelp.Add("opcua_oee_performance_ratio"))
+            {
+                sb.AppendLine("# HELP opcua_oee_performance_ratio Performance ratio (Target Time / Operating Time)");
+                sb.AppendLine("# TYPE opcua_oee_performance_ratio gauge");
+            }
+            sb.AppendLine($"opcua_oee_performance_ratio{{{orderLabel}}} {oeeResult.Performance.ToString("F4", CultureInfo.InvariantCulture)}");
+
+            if (writtenHelp.Add("opcua_oee_quality_ratio"))
+            {
+                sb.AppendLine("# HELP opcua_oee_quality_ratio Quality ratio (Good Parts / Total Parts)");
+                sb.AppendLine("# TYPE opcua_oee_quality_ratio gauge");
+            }
+            sb.AppendLine($"opcua_oee_quality_ratio{{{orderLabel}}} {oeeResult.Quality.ToString("F4", CultureInfo.InvariantCulture)}");
+
+            if (writtenHelp.Add("opcua_work_order_completion_percent"))
+            {
+                sb.AppendLine("# HELP opcua_work_order_completion_percent Work order completion percentage");
+                sb.AppendLine("# TYPE opcua_work_order_completion_percent gauge");
+            }
+            sb.AppendLine($"opcua_work_order_completion_percent{{{orderLabel}}} {oeeResult.CompletionPercent.ToString("F1", CultureInfo.InvariantCulture)}");
+        }
+
+        // 4. Gateway Self-Supervision Diagnostics
+        if (diagnostics != null)
+        {
+            if (writtenHelp.Add("atlas_collector_uptime_seconds"))
+            {
+                sb.AppendLine("# HELP atlas_collector_uptime_seconds Atlas edge collector uptime in seconds");
+                sb.AppendLine("# TYPE atlas_collector_uptime_seconds counter");
+            }
+            sb.AppendLine($"atlas_collector_uptime_seconds{{machine=\"{machineName}\"}} {diagnostics.UptimeSeconds.ToString("F1", CultureInfo.InvariantCulture)}");
+
+            if (writtenHelp.Add("atlas_collector_scrape_latency_seconds"))
+            {
+                sb.AppendLine("# HELP atlas_collector_scrape_latency_seconds Latency of last OPC UA read/scrape cycle in seconds");
+                sb.AppendLine("# TYPE atlas_collector_scrape_latency_seconds gauge");
+            }
+            sb.AppendLine($"atlas_collector_scrape_latency_seconds{{machine=\"{machineName}\"}} {(diagnostics.LastScrapeLatencyMs / 1000.0).ToString("F4", CultureInfo.InvariantCulture)}");
+
+            if (writtenHelp.Add("atlas_collector_read_errors_total"))
+            {
+                sb.AppendLine("# HELP atlas_collector_read_errors_total Total failed OPC UA reads");
+                sb.AppendLine("# TYPE atlas_collector_read_errors_total counter");
+            }
+            sb.AppendLine($"atlas_collector_read_errors_total{{machine=\"{machineName}\"}} {diagnostics.ReadErrorsTotal}");
+
+            if (writtenHelp.Add("atlas_collector_reconnects_total"))
+            {
+                sb.AppendLine("# HELP atlas_collector_reconnects_total Total session reconnect attempts");
+                sb.AppendLine("# TYPE atlas_collector_reconnects_total counter");
+            }
+            sb.AppendLine($"atlas_collector_reconnects_total{{machine=\"{machineName}\"}} {diagnostics.ReconnectsTotal}");
+
+            if (writtenHelp.Add("atlas_collector_monitored_items_active"))
+            {
+                sb.AppendLine("# HELP atlas_collector_monitored_items_active Active monitored items subscribed");
+                sb.AppendLine("# TYPE atlas_collector_monitored_items_active gauge");
+            }
+            sb.AppendLine($"atlas_collector_monitored_items_active{{machine=\"{machineName}\"}} {diagnostics.ActiveMonitoredItemsCount}");
+
+            if (writtenHelp.Add("atlas_machine_connected"))
+            {
+                sb.AppendLine("# HELP atlas_machine_connected Machine connectivity status (1=connected, 0=disconnected)");
+                sb.AppendLine("# TYPE atlas_machine_connected gauge");
+            }
+            sb.AppendLine($"atlas_machine_connected{{machine=\"{machineName}\"}} {(diagnostics.IsConnected ? "1" : "0")}");
         }
 
         return sb.ToString();

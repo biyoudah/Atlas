@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Opc.Ua.Atlas.Models;
 
 namespace Opc.Ua.Atlas.Labeling;
 
@@ -11,7 +12,8 @@ public record UserMappingRule(
     [property: JsonPropertyName("label")] string Label,
     [property: JsonPropertyName("unit")] string? Unit = null,
     [property: JsonPropertyName("scale")] double? Scale = null,
-    [property: JsonPropertyName("description")] string? Description = null);
+    [property: JsonPropertyName("description")] string? Description = null,
+    [property: JsonPropertyName("category")] SignalCategory? Category = null);
 
 /// <summary>
 /// A collection of machine/vendor specific mapping rules (e.g. for Siemens S7-1500 or Fanuc 31i).

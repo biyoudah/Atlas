@@ -40,7 +40,52 @@ public static class GrafanaDashboardGenerator
             }
         }
 
-        // --- ROW 1: KPI Stat Cards (y=0, h=4) ---
+        int currentY = 0;
+
+        // --- ROW 0: MTConnect Conditions & Safety Interlocks (y=currentY, h=3) ---
+        bool hasConditions = false;
+        int condX = 0;
+
+        if (byLabel.TryGetValue("emergency_stop", out _))
+        {
+            panels.Add(CreateStatPanel(
+                id: panelId++,
+                title: "Emergency Stop",
+                expr: $"opcua_emergency_stop{{machine=\"{machineName}\"}}",
+                x: condX, y: currentY, w: 6, h: 3,
+                datasource: datasource,
+                colorMode: "background",
+                mappings:
+                [
+                    new { type = "value", options = new Dictionary<string, object> { ["1"] = new { text = "TRIPPED", color = "red" }, ["0"] = new { text = "OK", color = "green" } } }
+                ]));
+            condX += 6;
+            hasConditions = true;
+        }
+
+        if (byLabel.TryGetValue("door_interlock", out _))
+        {
+            panels.Add(CreateStatPanel(
+                id: panelId++,
+                title: "Door Interlock",
+                expr: $"opcua_door_interlock{{machine=\"{machineName}\"}}",
+                x: condX, y: currentY, w: 6, h: 3,
+                datasource: datasource,
+                colorMode: "background",
+                mappings:
+                [
+                    new { type = "value", options = new Dictionary<string, object> { ["1"] = new { text = "LOCKED", color = "green" }, ["0"] = new { text = "OPEN", color = "yellow" } } }
+                ]));
+            condX += 6;
+            hasConditions = true;
+        }
+
+        if (hasConditions)
+        {
+            currentY += 3;
+        }
+
+        // --- ROW 1: MTConnect Events & Operational KPIs (y=currentY, h=4) ---
         // 1. Machine State
         if (byLabel.TryGetValue("machine_state", out var stateEntry))
         {
@@ -48,7 +93,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Machine State",
                 expr: $"opcua_machine_state{{machine=\"{machineName}\"}}",
-                x: 0, y: 0, w: 6, h: 4,
+                x: 0, y: currentY, w: 6, h: 4,
                 datasource: datasource,
                 colorMode: "background",
                 mappings:
@@ -64,7 +109,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Parts Produced",
                 expr: $"opcua_parts_produced_total{{machine=\"{machineName}\"}}",
-                x: 6, y: 0, w: 6, h: 4,
+                x: 6, y: currentY, w: 6, h: 4,
                 datasource: datasource,
                 colorMode: "value",
                 unit: "none",
@@ -78,7 +123,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Cycle Time",
                 expr: $"opcua_cycle_time_seconds{{machine=\"{machineName}\"}}",
-                x: 12, y: 0, w: 6, h: 4,
+                x: 12, y: currentY, w: 6, h: 4,
                 datasource: datasource,
                 colorMode: "value",
                 unit: "s",
@@ -92,7 +137,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Spindle Load",
                 expr: $"opcua_spindle_load{{machine=\"{machineName}\"}}",
-                x: 18, y: 0, w: 6, h: 4,
+                x: 18, y: currentY, w: 6, h: 4,
                 datasource: datasource,
                 unit: "percent",
                 min: 0,
@@ -105,7 +150,9 @@ public static class GrafanaDashboardGenerator
                 ]));
         }
 
-        // --- ROW 2: Process Gauges (y=4, h=6) ---
+        currentY += 4;
+
+        // --- ROW 2: MTConnect Process Samples & Gauges (y=currentY, h=6) ---
         // 5. Spindle Speed Gauge
         if (byLabel.TryGetValue("spindle_speed", out var speedEntry))
         {
@@ -114,7 +161,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Spindle Speed",
                 expr: $"opcua_spindle_speed_rpm{{machine=\"{machineName}\"}}",
-                x: 0, y: 4, w: 8, h: 6,
+                x: 0, y: currentY, w: 8, h: 6,
                 datasource: datasource,
                 unit: "rpm",
                 min: speedEntry.Range?.Low ?? 0.0,
@@ -135,7 +182,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Coolant Pressure",
                 expr: $"opcua_coolant_pressure_bar{{machine=\"{machineName}\"}}",
-                x: 8, y: 4, w: 8, h: 6,
+                x: 8, y: currentY, w: 8, h: 6,
                 datasource: datasource,
                 unit: "bar",
                 min: pressureEntry.Range?.Low ?? 0.0,
@@ -155,7 +202,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Spindle Temperature",
                 expr: $"opcua_spindle_temperature_celsius{{machine=\"{machineName}\"}}",
-                x: 16, y: 4, w: 8, h: 6,
+                x: 16, y: currentY, w: 8, h: 6,
                 datasource: datasource,
                 unit: "celsius",
                 min: 0,
@@ -168,7 +215,9 @@ public static class GrafanaDashboardGenerator
                 ]));
         }
 
-        // --- ROW 3: Time Series (y=10, h=7) ---
+        currentY += 6;
+
+        // --- ROW 3: Time Series (y=currentY, h=7) ---
         // 8. Feed Rate Time Series
         if (byLabel.TryGetValue("feed_rate", out var feedEntry))
         {
@@ -176,7 +225,7 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Feed Rate History",
                 expr: $"opcua_feed_rate_mm_per_min{{machine=\"{machineName}\"}}",
-                x: 0, y: 10, w: 12, h: 7,
+                x: 0, y: currentY, w: 12, h: 7,
                 datasource: datasource,
                 unit: "mm/min"));
         }
@@ -188,19 +237,21 @@ public static class GrafanaDashboardGenerator
                 id: panelId++,
                 title: "Temperature Trends",
                 expr: $"{{__name__=~\"opcua_.*temperature.*\", machine=\"{machineName}\"}}",
-                x: 12, y: 10, w: 12, h: 7,
+                x: 12, y: currentY, w: 12, h: 7,
                 datasource: datasource,
                 unit: "celsius"));
         }
 
-        // --- ROW 4: State Timeline (y=17, h=5) ---
+        currentY += 7;
+
+        // --- ROW 4: State Timeline (y=currentY, h=5) ---
         if (byLabel.TryGetValue("machine_state", out _))
         {
             panels.Add(CreateStateTimelinePanel(
                 id: panelId++,
                 title: "Execution State Timeline",
                 expr: $"opcua_machine_state{{machine=\"{machineName}\"}}",
-                x: 0, y: 17, w: 24, h: 5,
+                x: 0, y: currentY, w: 24, h: 5,
                 datasource: datasource));
         }
 
