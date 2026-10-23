@@ -30,19 +30,23 @@ public sealed class AtlasServer : IAsyncDisposable
     public WebSocketGateway Gateway => _gateway;
     public SubscriptionMultiplexer Multiplexer => _multiplexer;
     public bool IsListening => _listener.IsListening;
+    public Mes.WorkOrderContext? WorkOrder { get; set; }
+    public Mes.OeeCalculator OeeCalculator { get; } = new();
 
     public AtlasServer(
         AtlasCatalog catalog,
         SubscriptionMultiplexer multiplexer,
         string prefix = "http://localhost:9090/",
         string machineName = "default_machine",
-        ILogger? logger = null)
+        ILogger? logger = null,
+        Mes.WorkOrderContext? workOrder = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _multiplexer = multiplexer ?? throw new ArgumentNullException(nameof(multiplexer));
         _prefix = prefix.EndsWith('/') ? prefix : prefix + "/";
         _machineName = machineName;
         _logger = logger;
+        WorkOrder = workOrder;
 
         _gateway = new WebSocketGateway(_multiplexer, _catalog, _logger);
     }
@@ -125,7 +129,15 @@ public sealed class AtlasServer : IAsyncDisposable
 
             if (path == "/metrics")
             {
-                string metrics = PrometheusExporter.SerializeMetrics(_multiplexer.GetSnapshot(), _machineName);
+                var diag = _multiplexer.GetDiagnostics();
+                var oee = WorkOrder != null ? OeeCalculator.Calculate(WorkOrder, _multiplexer.GetSnapshot()) : null;
+                string metrics = PrometheusExporter.SerializeMetrics(
+                    _multiplexer.GetSnapshot(),
+                    _machineName,
+                    _multiplexer.QualityGuard,
+                    _multiplexer.SyntheticEngine,
+                    oee,
+                    diag);
                 byte[] bytes = Encoding.UTF8.GetBytes(metrics);
 
                 context.Response.ContentType = "text/plain; version=0.0.4; charset=utf-8";
@@ -151,17 +163,46 @@ public sealed class AtlasServer : IAsyncDisposable
 
             if (path == "/health")
             {
+                var diag = _multiplexer.GetDiagnostics();
+                var staleRecords = _multiplexer.QualityGuard.EvaluateStaleness();
                 var health = new
                 {
-                    status = "UP",
+                    status = diag.IsConnected || _catalog.Entries.Count > 0 ? "UP" : "DEGRADED",
                     serverUri = _catalog.Metadata.ServerUri ?? _catalog.Metadata.EndpointUrl,
-                    catalogEntries = _catalog.Entries.Count,
+                    collector = new
+                    {
+                        uptimeSeconds = diag.UptimeSeconds,
+                        scrapeLatencyMs = diag.LastScrapeLatencyMs,
+                        readErrorsTotal = diag.ReadErrorsTotal,
+                        reconnectsTotal = diag.ReconnectsTotal,
+                        monitoredItemsActive = diag.ActiveMonitoredItemsCount
+                    },
+                    machine = new
+                    {
+                        connected = diag.IsConnected,
+                        catalogEntries = _catalog.Entries.Count,
+                        staleSignalsCount = staleRecords.Count
+                    },
                     connectedWsClients = _gateway.ConnectedClientsCount,
                     readOnly = _multiplexer.IsReadOnly,
                     timestamp = DateTime.UtcNow.ToString("o")
                 };
 
-                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(health);
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(health, new JsonSerializerOptions { WriteIndented = true });
+                context.Response.ContentType = "application/json; charset=utf-8";
+                context.Response.StatusCode = (int)HttpStatusCode.OK;
+                context.Response.ContentLength64 = bytes.Length;
+                await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
+                context.Response.Close();
+                return;
+            }
+
+            if (path is "/mes" or "/reconciliation")
+            {
+                var ofContext = WorkOrder ?? new Mes.WorkOrderContext();
+                var oee = OeeCalculator.Calculate(ofContext, _multiplexer.GetSnapshot());
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(oee, new JsonSerializerOptions { WriteIndented = true });
+
                 context.Response.ContentType = "application/json; charset=utf-8";
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
                 context.Response.ContentLength64 = bytes.Length;
@@ -172,7 +213,7 @@ public sealed class AtlasServer : IAsyncDisposable
 
             // Default: 404
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            byte[] notFound = Encoding.UTF8.GetBytes("Endpoint not found. Valid endpoints: /metrics, /catalog, /health, /ws");
+            byte[] notFound = Encoding.UTF8.GetBytes("Endpoint not found. Valid endpoints: /metrics, /catalog, /health, /reconciliation, /ws");
             await context.Response.OutputStream.WriteAsync(notFound, ct).ConfigureAwait(false);
             context.Response.Close();
         }

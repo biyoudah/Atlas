@@ -26,6 +26,20 @@ public record InferredSemantics(
     [property: JsonPropertyName("evidence")] IReadOnlyList<string> Evidence);
 
 /// <summary>
+/// MTConnect / ANSI-standard signal classification.
+/// Sample: continuously variable analog metric (e.g. speed, temp, pressure, vibration).
+/// Event: discrete state change, counter, or operational flag (e.g. state, parts, tool number).
+/// Condition: health status, interlock, or alarm (e.g. emergency stop, door locked, fault).
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum SignalCategory
+{
+    Sample,
+    Event,
+    Condition
+}
+
+/// <summary>
 /// A protocol-agnostic, stable catalog record of an OPC UA node.
 /// </summary>
 public class CatalogEntry
@@ -35,6 +49,12 @@ public class CatalogEntry
     /// </summary>
     [JsonPropertyName("id")]
     public required string Id { get; init; }
+
+    /// <summary>
+    /// MTConnect taxonomy category (Sample, Event, Condition).
+    /// </summary>
+    [JsonPropertyName("category")]
+    public SignalCategory Category { get; set; } = SignalCategory.Sample;
 
     /// <summary>
     /// Hierarchical browse path (e.g. "Objects/Machine/DB10/Var_27").

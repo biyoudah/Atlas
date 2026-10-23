@@ -108,6 +108,8 @@ public static class SemanticLabeler
                         Label: matchedRule.Label,
                         Confidence: 1.0,
                         Evidence: [$"User mapping pack '{mappingPack!.Name}': pattern '{matchedRule.Pattern}'"]);
+
+                    entry.Category = matchedRule.Category ?? DeduceCategory(entry, matchedRule.Label);
                     continue;
                 }
             }
@@ -277,6 +279,42 @@ public static class SemanticLabeler
                     Confidence: Math.Round(Math.Min(1.0, confidence), 2),
                     Evidence: evidence);
             }
+
+            entry.Category = DeduceCategory(entry, candidateLabel);
         }
+    }
+
+    /// <summary>
+    /// Categorizes a node into MTConnect tri-fold taxonomy (Sample, Event, Condition).
+    /// </summary>
+    public static SignalCategory DeduceCategory(CatalogEntry entry, string? label = null)
+    {
+        string effectiveLabel = label ?? entry.Inferred?.Label ?? string.Empty;
+
+        // Condition indicators: safety, alarms, interlocks
+        if (effectiveLabel is "emergency_stop" or "door_interlock" ||
+            entry.Path.Contains("alarm", StringComparison.OrdinalIgnoreCase) ||
+            entry.Path.Contains("fault", StringComparison.OrdinalIgnoreCase) ||
+            entry.Path.Contains("estop", StringComparison.OrdinalIgnoreCase) ||
+            entry.Path.Contains("interlock", StringComparison.OrdinalIgnoreCase) ||
+            (entry.BrowseName != null && (
+                entry.BrowseName.Contains("alarm", StringComparison.OrdinalIgnoreCase) ||
+                entry.BrowseName.Contains("fault", StringComparison.OrdinalIgnoreCase) ||
+                entry.BrowseName.Contains("interlock", StringComparison.OrdinalIgnoreCase))))
+        {
+            return SignalCategory.Condition;
+        }
+
+        // Event indicators: state transitions, counters, operational parameters
+        if (effectiveLabel is "machine_state" or "parts_produced" or "operating_mode" or "active_program" or "tool_number" or "oee_metric" ||
+            entry.DataType is "String" or "LocalizedText" ||
+            (entry.EnumStrings != null && entry.EnumStrings.Count > 0) ||
+            entry.DataType == "Boolean")
+        {
+            return SignalCategory.Event;
+        }
+
+        // Samples: analog fluctuating kinetics / measurements
+        return SignalCategory.Sample;
     }
 }

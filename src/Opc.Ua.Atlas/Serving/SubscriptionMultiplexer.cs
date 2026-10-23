@@ -31,17 +31,34 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
     public int MaxMonitoredItems { get; set; } = 500;
     public TimeSpan PollingInterval { get; set; } = TimeSpan.FromMilliseconds(1000);
 
+    public QualityGuard QualityGuard { get; }
+    public SyntheticMetricsEngine SyntheticEngine { get; } = new();
+    public DateTime StartTimeUtc { get; } = DateTime.UtcNow;
+    public double LastScrapeLatencyMs { get; private set; }
+    public long ReadErrorsTotal => _readErrorsTotal;
+    public long ReconnectsTotal => _reconnectsTotal;
+    public int ActiveMonitoredItemsCount => _monitoredItems.Count;
+    public bool IsSessionConnected => _session != null && _session.Connected;
+
+    public void RecordReconnect() => Interlocked.Increment(ref _reconnectsTotal);
+    public void RecordReadError() => Interlocked.Increment(ref _readErrorsTotal);
+
+    private long _readErrorsTotal;
+    private long _reconnectsTotal;
+
     public event Action<string, CatalogEntry, object?, DateTime>? OnValueChanged;
 
     public SubscriptionMultiplexer(
         AtlasCatalog catalog,
         ISession? session = null,
         ILogger? logger = null,
-        IEnumerable<string>? writeAllowlist = null)
+        IEnumerable<string>? writeAllowlist = null,
+        QualityGuard? qualityGuard = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _session = session;
         _logger = logger;
+        QualityGuard = qualityGuard ?? new QualityGuard(failureThreshold: 3, staleTimeout: TimeSpan.FromSeconds(10), logger: _logger);
 
         if (writeAllowlist != null)
         {
@@ -62,6 +79,17 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
             _cache[entry.Id] = (entry, null, DateTime.UtcNow);
         }
     }
+
+    /// <summary>
+    /// Gets self-supervision diagnostics for the collector gateway.
+    /// </summary>
+    public CollectorDiagnostics GetDiagnostics() => new(
+        UptimeSeconds: Math.Round((DateTime.UtcNow - StartTimeUtc).TotalSeconds, 1),
+        LastScrapeLatencyMs: Math.Round(LastScrapeLatencyMs, 2),
+        ReadErrorsTotal: _readErrorsTotal,
+        ReconnectsTotal: _reconnectsTotal,
+        ActiveMonitoredItemsCount: _monitoredItems.Count,
+        IsConnected: IsSessionConnected);
 
     /// <summary>
     /// Gets a thread-safe snapshot of all cached values.
@@ -110,8 +138,14 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
             }
         }
 
-        _cache[nodeIdOrUri] = (entry, value, ts);
-        OnValueChanged?.Invoke(nodeIdOrUri, entry, value, ts);
+        bool isCounter = entry.Inferred?.Label is "parts_produced" or "part_counter" ||
+                         (entry.BrowseName != null && entry.BrowseName.Contains("part", StringComparison.OrdinalIgnoreCase));
+
+        var record = QualityGuard.ProcessGoodValue(nodeIdOrUri, value, ts, isCounter);
+        object? finalValue = record.Value;
+
+        _cache[nodeIdOrUri] = (entry, finalValue, ts);
+        OnValueChanged?.Invoke(nodeIdOrUri, entry, finalValue, ts);
     }
 
     /// <summary>
@@ -381,22 +415,30 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
                         });
                     }
 
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
                     var response = await _session.ReadAsync(
                         null,
                         0,
                         TimestampsToReturn.Both,
                         readList.ToArray(),
                         ct).ConfigureAwait(false);
+                    sw.Stop();
+                    LastScrapeLatencyMs = sw.Elapsed.TotalMilliseconds;
 
                     for (int i = 0; i < response.Results.Count; i++)
                     {
                         var res = response.Results[i];
+                        string idStr = kvps[i].Key;
                         if (StatusCode.IsGood(res.StatusCode))
                         {
-                            string idStr = kvps[i].Key;
                             object? val = res.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                             DateTime ts = (DateTime)res.SourceTimestamp;
                             UpdateValue(idStr, val, ts);
+                        }
+                        else
+                        {
+                            Interlocked.Increment(ref _readErrorsTotal);
+                            QualityGuard.ProcessFailure(idStr, res.StatusCode.ToString());
                         }
                     }
                 }
@@ -409,6 +451,11 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
             }
             catch (Exception ex)
             {
+                Interlocked.Increment(ref _readErrorsTotal);
+                foreach (var kvp in _polledNodes.ToArray())
+                {
+                    QualityGuard.ProcessFailure(kvp.Key, ex.Message);
+                }
                 _logger?.LogDebug(ex, "Polled read cycle encountered an error.");
                 await Task.Delay(1000, ct).ConfigureAwait(false);
             }
