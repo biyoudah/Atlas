@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/simulation/">
+    <Project Path="simulation/Opc.Ua.FakeCnc/Opc.Ua.FakeCnc.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Opc.Ua.Atlas/Opc.Ua.Atlas.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Atlas.Tests/Opc.Ua.Atlas.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,25 @@
+## .NET / C#
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## IDE / Editors
+.vscode/
+.vs/
+*.swp
+*.DotSettings.user
+
+## OS Files
+.DS_Store
+Thumbs.db
+
+## Test outputs & artifacts
+TestResults/
+*.log
+showcase_*.json
+showcase_*.csv
+showcase_*.xml
+showcase_*.md

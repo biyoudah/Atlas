@@ -1,0 +1,31 @@
+{
+  "name": "mitsubishi-m800",
+  "vendor": "Mitsubishi Electric",
+  "model": "M800 / M80 / C80 Series CNC",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "pattern": "(D200|.*SpindleRotationalSpeed.*)",
+      "label": "spindle_speed",
+      "unit": "rpm",
+      "description": "Spindle rotation speed monitor register"
+    },
+    {
+      "pattern": "(R1000|.*TotalPartsCounter.*)",
+      "label": "parts_produced",
+      "unit": "count",
+      "description": "Total workpiece counter"
+    },
+    {
+      "pattern": "(M100|.*RunStatus.*|.*OperationStatus.*)",
+      "label": "machine_state",
+      "description": "M-relay running state indicator"
+    },
+    {
+      "pattern": "(D210|.*FeedVelocity.*)",
+      "label": "feed_rate",
+      "unit": "mm/min",
+      "description": "Axis feed velocity monitor"
+    }
+  ]
+}
