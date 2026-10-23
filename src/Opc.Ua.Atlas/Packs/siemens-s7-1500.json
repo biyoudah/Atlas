@@ -1,0 +1,55 @@
+{
+  "name": "siemens-s7-1500-sinumerik",
+  "vendor": "Siemens",
+  "model": "S7-1500 / Sinumerik ONE / 840D sl",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "pattern": "(DB10\\.(Var_27|SpindleSpeed)|.*Spindle.*(Speed|ActualSpeed).*)",
+      "label": "spindle_speed",
+      "unit": "rpm",
+      "description": "Main machining spindle rotational speed"
+    },
+    {
+      "pattern": "(DB100\\.(PartCounter|PartsProduced)|.*PartsProduced|.*PartCounter)",
+      "label": "parts_produced",
+      "unit": "count",
+      "description": "Total finished parts counter"
+    },
+    {
+      "pattern": "(DB20\\.(State|Status)|.*OperatingMode|.*ExecutionState)",
+      "label": "machine_state",
+      "description": "Discrete controller execution state (RUNNING, STOPPED, FAULT)"
+    },
+    {
+      "pattern": "(DB30\\.CoolantPressure|.*Coolant.*(Pressure|Bar).*)",
+      "label": "coolant_pressure",
+      "unit": "bar",
+      "description": "Cutting fluid pump line pressure"
+    },
+    {
+      "pattern": "(DB40\\.SpindleTemp|.*Spindle.*(Temp|Temperature).*)",
+      "label": "spindle_temperature",
+      "unit": "°C",
+      "description": "Spindle motor stator winding temperature"
+    },
+    {
+      "pattern": "(DB50\\.SpindleLoad|.*Spindle.*(Load|Torque).*)",
+      "label": "spindle_load",
+      "unit": "%",
+      "description": "Spindle motor instantaneous torque / load percentage"
+    },
+    {
+      "pattern": "(DB60\\.ActualFeed|.*Feed.*(Rate|Act).*)",
+      "label": "feed_rate",
+      "unit": "mm/min",
+      "description": "Programmed axis feed velocity"
+    },
+    {
+      "pattern": "(DB70\\.CycleTime|.*CycleTime.*)",
+      "label": "cycle_time",
+      "unit": "s",
+      "description": "Current active machining cycle duration in seconds"
+    }
+  ]
+}

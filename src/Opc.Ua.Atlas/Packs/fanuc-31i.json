@@ -1,0 +1,43 @@
+{
+  "name": "fanuc-31i-model-b",
+  "vendor": "FANUC",
+  "model": "Series 30i/31i/32i/0i Model B",
+  "version": "1.0.0",
+  "rules": [
+    {
+      "pattern": "(D0100|.*Spindle.*ActualSpeed.*|.*CNC.*ActualSpeed.*)",
+      "label": "spindle_speed",
+      "unit": "rpm",
+      "description": "Fanuc CNC spindle rpm reading"
+    },
+    {
+      "pattern": "(R0500|.*PartsCounter.*|.*TotalParts.*)",
+      "label": "parts_produced",
+      "unit": "count",
+      "description": "PMC part total counter register"
+    },
+    {
+      "pattern": "(F0001|.*ExecutionStatus.*|.*RunStatus.*)",
+      "label": "machine_state",
+      "description": "F-register cycle start / execution status"
+    },
+    {
+      "pattern": "(D0200|.*FeedRate.*|.*Feed_Act.*)",
+      "label": "feed_rate",
+      "unit": "mm/min",
+      "description": "Active axis cutting feedrate"
+    },
+    {
+      "pattern": "(D0350|.*LoadMeter.*|.*SpindleLoad.*)",
+      "label": "spindle_load",
+      "unit": "%",
+      "description": "Spindle motor load meter percentage"
+    },
+    {
+      "pattern": "(D0400|.*CoolantPressure.*)",
+      "label": "coolant_pressure",
+      "unit": "bar",
+      "description": "Through-spindle coolant line pressure"
+    }
+  ]
+}
