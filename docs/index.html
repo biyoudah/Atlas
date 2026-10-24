@@ -650,6 +650,7 @@
       </div>
       <a href="/metrics" target="_blank" class="btn-link">📊 /metrics (OpenMetrics)</a>
       <a href="/catalog" target="_blank" class="btn-link">💾 /catalog (JSON)</a>
+      <a href="/api/live" target="_blank" class="btn-link">⚡ /api/live</a>
       <a href="/health" target="_blank" class="btn-link">❤️ /health</a>
       <a href="http://localhost:3000" target="_blank" class="btn-link" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">📈 Grafana</a>
     </div>
@@ -660,12 +661,13 @@
     <div class="search-box-row">
       <div class="url-input-container">
         <span class="url-icon">🔌</span>
-        <input type="text" id="targetUrlInput" class="url-input" value="opc.tcp://opcua.umati.app:4840" placeholder="opc.tcp://<host>:<port>" />
+        <input type="text" id="targetUrlInput" class="url-input" value="opc.tcp://opcua.umati.app:4840" placeholder="opc.tcp://<host>:<port>" onkeydown="if(event.key==='Enter') analyzeEndpointUrl()" />
       </div>
-      <button class="btn-primary" id="btnAnalyze" onclick="switchPreset('umati')">
+      <button class="btn-primary" id="btnAnalyze" onclick="analyzeEndpointUrl()">
         <span>⚡</span> ANALYZE ADDRESS SPACE
       </button>
     </div>
+    <div id="scanStatusBanner" style="display:none; max-width:1200px; margin:0.75rem auto 0; padding:0.6rem 1rem; border-radius:6px; font-size:0.8rem; font-family:var(--font-mono);"></div>
     <div class="presets-row">
       <span class="preset-label">Validated Reference Targets:</span>
       <div class="preset-pill active" onclick="switchPreset('umati')">
@@ -677,7 +679,7 @@
       <div class="preset-pill" onclick="switchPreset('sterfive')">
         <span>⚡</span> Sterfive (TypeScript Node-OPCUA)
       </div>
-      <div class="preset-pill" onclick="switchPreset('sample-industrial')">
+      <div class="preset-pill" onclick="switchPreset('siemens_s7')">
         <span>🧪</span> Siemens S7-1500 Controller
       </div>
     </div>
@@ -839,32 +841,20 @@
             <span class="radar-title">
               <span>📈</span> Live Oscilloscope (1s Real-Time Sampling)
             </span>
-            <span style="font-size: 0.75rem; color: var(--accent-emerald); font-family: var(--font-mono);" id="oscLiveRate">
-              1.0 Scrapes/sec · 0 Drops
-            </span>
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <span style="font-size: 0.75rem; color: var(--accent-emerald); font-family: var(--font-mono);" id="oscLiveRate">
+                1.0 Scrapes/sec · 0 Drops
+              </span>
+              <div style="display:flex; align-items:center; gap:0.35rem; background: rgba(15, 23, 42, 0.6); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid var(--card-border);">
+                <button class="btn-link" style="padding:0.15rem 0.4rem; font-size:0.65rem; border:none; background:transparent;" onclick="prevGaugesPage()" title="Previous Signals">◀</button>
+                <span id="gaugesCountLabel" style="font-size:0.7rem; color:var(--accent-cyan); font-family:var(--font-mono); min-width: 65px; text-align: center;">1–4 / 30</span>
+                <button class="btn-link" style="padding:0.15rem 0.4rem; font-size:0.65rem; border:none; background:transparent;" onclick="nextGaugesPage()" title="Next Signals">▶</button>
+              </div>
+            </div>
           </div>
 
-          <div class="telemetry-gauges-row">
-            <div class="gauge-card">
-              <div class="gauge-title">BasicMachineTool Feed</div>
-              <div class="gauge-val-large" id="gVal1">26.9<span class="gauge-unit">%</span></div>
-              <div class="gauge-unit">Potentiometer Ch.1</div>
-            </div>
-            <div class="gauge-card">
-              <div class="gauge-title">FullMachineTool Feed</div>
-              <div class="gauge-val-large" id="gVal2">67.5<span class="gauge-unit">%</span></div>
-              <div class="gauge-unit">5-Axis Machining Center</div>
-            </div>
-            <div class="gauge-card">
-              <div class="gauge-title">Hexagon PMM Gold</div>
-              <div class="gauge-val-large" id="gVal3" style="color: var(--accent-cyan);">100<span class="gauge-unit">%</span></div>
-              <div class="gauge-unit">Coordinate Measuring</div>
-            </div>
-            <div class="gauge-card">
-              <div class="gauge-title">Operating Mode</div>
-              <div class="gauge-val-large" id="gVal4" style="color: var(--accent-emerald); font-size: 1.3rem;">AUTO</div>
-              <div class="gauge-unit">OPC 40501 MachineState</div>
-            </div>
+          <div class="telemetry-gauges-row" id="telemetryGaugesRow">
+            <!-- Dynamically populated from active actionable telemetry signals -->
           </div>
 
           <div class="waveform-container">
@@ -1531,20 +1521,20 @@
           }
         ]
       },
-      sample-industrial: {
-        url: "opc.tcp://127.0.0.1:4840",
+      siemens_s7: {
+        url: "opc.tcp://127.0.0.1:4840/SiemensCell",
         totalNodes: 342,
         telemetryNodes: 48,
         noiseNodes: 294,
         quarantineCount: 0,
-        quarantineDesc: "Reconciled with MES standard-telemetry Batch",
+        quarantineDesc: "0 Quarantined Anomalies (All Channels Healthy)",
         bar: { signals: 14, folders: 50, schemas: 36, stale: 0 },
         nodes: [
           {
             id: "ns=3;s=\"DB_PROD\".\"PiecesCount\"",
             name: "PiecesCount",
             path: "Objects/Siemens_S7_1500/DB_PROD/PiecesCount",
-            device: "sample-industrial_CNC_01",
+            device: "Sample_CNC_01",
             type: "UInt32",
             category: "telemetry",
             value: "1,420 parts",
@@ -1560,9 +1550,19 @@
 
     let currentTarget = "umati";
     let activeFilterCat = "telemetry";
+    let currentInspectedNode = null;
+    let gaugeOffset = 0;
+    const GAUGES_PER_PAGE = 4;
+    let liveTelemetryActive = false;
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
 
     function switchPreset(targetKey) {
       currentTarget = targetKey;
+      gaugeOffset = 0;
       const data = DATASETS[targetKey];
       if (!data) return;
 
@@ -1593,8 +1593,81 @@
         `${data.totalNodes} nodes discovered · ${data.telemetryNodes} actionable signals · ${data.noiseNodes} noise nodes isolated`;
 
       renderNodeList(data.nodes);
+      const actionables = data.nodes.filter(n => n.category === "telemetry");
+      renderTelemetryGauges(actionables);
+
       if (data.nodes.length > 0) {
         selectNode(data.nodes[0]);
+      }
+    }
+
+    function renderTelemetryGauges(actionableNodes) {
+      const container = document.getElementById("telemetryGaugesRow");
+      if (!container) return;
+
+      if (!actionableNodes || actionableNodes.length === 0) {
+        container.innerHTML = `<div style="grid-column: 1/-1; padding: 1.5rem; text-align: center; color: var(--text-dim); font-size: 0.85rem;">No actionable telemetry signals available in current target.</div>`;
+        document.getElementById("gaugesCountLabel").innerText = "0 / 0";
+        return;
+      }
+
+      if (gaugeOffset >= actionableNodes.length) gaugeOffset = 0;
+      if (gaugeOffset < 0) gaugeOffset = Math.max(0, Math.floor((actionableNodes.length - 1) / GAUGES_PER_PAGE) * GAUGES_PER_PAGE);
+
+      const page = actionableNodes.slice(gaugeOffset, gaugeOffset + GAUGES_PER_PAGE);
+      const startIdx = gaugeOffset + 1;
+      const endIdx = Math.min(gaugeOffset + GAUGES_PER_PAGE, actionableNodes.length);
+      document.getElementById("gaugesCountLabel").innerText = `${startIdx}–${endIdx} / ${actionableNodes.length}`;
+
+      const colors = ["var(--accent-emerald)", "var(--accent-cyan)", "var(--accent-amber)", "#a78bfa"];
+
+      container.innerHTML = page.map((n, i) => {
+        const color = colors[i % colors.length];
+        const valDisplay = n.value || "—";
+        return `
+          <div class="gauge-card" onclick="selectNodeById('${n.id}')" style="cursor: pointer;" title="Click to inspect ${escapeHtml(n.name)}">
+            <div class="gauge-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(n.name)}</div>
+            <div class="gauge-val-large" id="dynGVal_${i}" style="color: ${color}; font-size: 1.4rem;">${escapeHtml(valDisplay)}</div>
+            <div class="gauge-unit" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(n.device || 'Telemetry')} ${n.channel ? '· ' + escapeHtml(n.channel) : ''}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function nextGaugesPage() {
+      const target = DATASETS[currentTarget];
+      if (!target || !target.nodes) return;
+      const actionables = target.nodes.filter(n => n.category === "telemetry");
+      if (actionables.length <= GAUGES_PER_PAGE) return;
+      gaugeOffset += GAUGES_PER_PAGE;
+      if (gaugeOffset >= actionables.length) gaugeOffset = 0;
+      renderTelemetryGauges(actionables);
+    }
+
+    function prevGaugesPage() {
+      const target = DATASETS[currentTarget];
+      if (!target || !target.nodes) return;
+      const actionables = target.nodes.filter(n => n.category === "telemetry");
+      if (actionables.length <= GAUGES_PER_PAGE) return;
+      gaugeOffset -= GAUGES_PER_PAGE;
+      if (gaugeOffset < 0) gaugeOffset = Math.max(0, Math.floor((actionables.length - 1) / GAUGES_PER_PAGE) * GAUGES_PER_PAGE);
+      renderTelemetryGauges(actionables);
+    }
+
+    function selectNodeById(id) {
+      const target = DATASETS[currentTarget];
+      if (!target || !target.nodes) return;
+      const n = target.nodes.find(x => x.id === id);
+      if (n) {
+        selectNode(n);
+        document.querySelectorAll(".node-item").forEach(el => {
+          if (el.dataset.nodeId === id) {
+            el.classList.add("selected");
+            el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          } else {
+            el.classList.remove("selected");
+          }
+        });
       }
     }
 
@@ -1615,6 +1688,7 @@
       filtered.forEach((n, idx) => {
         const item = document.createElement("div");
         item.className = "node-item" + (idx === 0 ? " selected" : "");
+        item.dataset.nodeId = n.id;
         item.onclick = () => {
           document.querySelectorAll(".node-item").forEach(el => el.classList.remove("selected"));
           item.classList.add("selected");
@@ -1628,17 +1702,18 @@
           <div class="node-name-col">
             <span class="node-icon">${icon}</span>
             <div>
-              <div style="font-weight: 600; color: #fff;">${n.name}</div>
-              <div style="font-size: 0.65rem; color: var(--text-dim);">${n.device || 'Topology'}</div>
+              <div style="font-weight: 600; color: #fff;">${escapeHtml(n.name)}</div>
+              <div style="font-size: 0.65rem; color: var(--text-dim);">${escapeHtml(n.device || 'Topology')}</div>
             </div>
           </div>
-          <span class="node-status-tag ${tagClass}">${n.category}</span>
+          <span class="node-status-tag ${tagClass}">${escapeHtml(n.category)}</span>
         `;
         container.appendChild(item);
       });
     }
 
     function selectNode(n) {
+      currentInspectedNode = n;
       document.getElementById("inspName").innerText = n.name;
       document.getElementById("inspPath").innerText = n.path;
       document.getElementById("inspId").innerText = n.id;
@@ -1652,7 +1727,7 @@
         document.getElementById("inspQuality").style.color = "var(--accent-rose)";
       } else {
         document.getElementById("inspValue").style.color = "var(--accent-emerald)";
-        document.getElementById("inspQuality").innerText = "FRESH (Scraped in 2ms)";
+        document.getElementById("inspQuality").innerText = "FRESH (Active Monitored Item)";
         document.getElementById("inspQuality").style.color = "var(--accent-emerald)";
       }
 
@@ -1681,6 +1756,158 @@
       filterNodes();
     }
 
+    // Live endpoint analyzer & crawler
+    async function analyzeEndpointUrl() {
+      const input = document.getElementById("targetUrlInput");
+      const url = (input.value || "").trim();
+      const btn = document.getElementById("btnAnalyze");
+      const banner = document.getElementById("scanStatusBanner");
+
+      if (!url) return;
+
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳</span> CRAWLING ADDRESS SPACE...`;
+      banner.style.display = "block";
+      banner.style.background = "rgba(6, 182, 212, 0.12)";
+      banner.style.border = "1px solid rgba(6, 182, 212, 0.35)";
+      banner.style.color = "#38bdf8";
+      banner.innerHTML = `<span>🔍</span> Connecting to <strong>${escapeHtml(url)}</strong> and crawling address space (depth 6)...`;
+
+      try {
+        const res = await fetch(`/api/scan?url=${encodeURIComponent(url)}&depth=6`, {
+          method: "GET",
+          headers: { "Accept": "application/json" }
+        });
+
+        if (res.ok) {
+          const catData = await res.json();
+          applyCatalogData(catData, url);
+
+          const teleCount = (catData.entries || []).filter(e => e.inferred != null).length;
+          banner.style.background = "rgba(16, 185, 129, 0.12)";
+          banner.style.border = "1px solid rgba(16, 185, 129, 0.35)";
+          banner.style.color = "#34d399";
+          banner.innerHTML = `<span>✓</span> Discovered and classified <strong>${catData.entries?.length || 0} nodes</strong> (${teleCount} actionable telemetry signals) from <strong>${escapeHtml(url)}</strong>`;
+        } else {
+          let errMsg = "Server returned HTTP " + res.status;
+          try {
+            const errJson = await res.json();
+            if (errJson.message) errMsg = errJson.message;
+          } catch { }
+
+          const matchedKey = findPresetKey(url);
+          if (matchedKey) {
+            switchPreset(matchedKey);
+            banner.style.background = "rgba(245, 158, 11, 0.12)";
+            banner.style.border = "1px solid rgba(245, 158, 11, 0.35)";
+            banner.style.color = "#fbbf24";
+            banner.innerHTML = `<span>⚠️</span> Live endpoint unreachable (${escapeHtml(errMsg)}). Switched to validated reference dataset for <strong>${matchedKey}</strong>.`;
+          } else {
+            banner.style.background = "rgba(244, 63, 94, 0.12)";
+            banner.style.border = "1px solid rgba(244, 63, 94, 0.35)";
+            banner.style.color = "#f87171";
+            banner.innerHTML = `<span>✕</span> Scan error for ${escapeHtml(url)}: ${escapeHtml(errMsg)}`;
+          }
+        }
+      } catch (ex) {
+        const matchedKey = findPresetKey(url);
+        if (matchedKey) {
+          switchPreset(matchedKey);
+          banner.style.background = "rgba(245, 158, 11, 0.12)";
+          banner.style.border = "1px solid rgba(245, 158, 11, 0.35)";
+          banner.style.color = "#fbbf24";
+          banner.innerHTML = `<span>⚠️</span> Local Atlas daemon not running or network error. Displaying validated reference dataset for <strong>${matchedKey}</strong>.`;
+        } else {
+          banner.style.background = "rgba(244, 63, 94, 0.12)";
+          banner.style.border = "1px solid rgba(244, 63, 94, 0.35)";
+          banner.style.color = "#f87171";
+          banner.innerHTML = `<span>✕</span> Connection failed: ${escapeHtml(ex.message || "Network error")}. Make sure Atlas server is running with 'atlas serve'.`;
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>⚡</span> ANALYZE ADDRESS SPACE`;
+      }
+    }
+
+    function findPresetKey(url) {
+      const u = (url || "").toLowerCase();
+      if (u.includes("umati")) return "umati";
+      if (u.includes("milo")) return "milo";
+      if (u.includes("sterfive")) return "sterfive";
+      if (u.includes("siemens") || u.includes("127.0.0.1:4840")) return "siemens_s7";
+      return null;
+    }
+
+    function applyCatalogData(catData, url) {
+      if (!catData || !catData.entries) return;
+
+      const discoveredNodes = [];
+      let telemetryCount = 0;
+      let noiseCount = 0;
+      let quarantineCount = 0;
+
+      catData.entries.forEach(entry => {
+        const isQuarantine = entry.id === "i=6095" || (entry.path && entry.path.includes("OnlineAccess"));
+        const isTelemetry = entry.inferred != null;
+        const category = isQuarantine ? "quarantine" : (isTelemetry ? "telemetry" : "noise");
+
+        if (isTelemetry) telemetryCount++;
+        else if (isQuarantine) quarantineCount++;
+        else noiseCount++;
+
+        let device = "Controller";
+        if (entry.path) {
+          const m = entry.path.match(/Machines\/([^/]+)/);
+          if (m) device = m[1];
+        }
+        let channel = "";
+        if (entry.path) {
+          const cm = entry.path.match(/(Channel\s*\d+)/i);
+          if (cm) channel = cm[1];
+        }
+
+        const name = channel ? `${entry.browseName || 'Signal'} (${channel})` : (entry.browseName || entry.displayName || 'Node');
+        const val = entry.unit ? `0.0 ${entry.unit}` : (isTelemetry ? "Good (Active)" : "Directory Scaffold");
+
+        discoveredNodes.push({
+          id: entry.id,
+          name: name,
+          path: entry.path || "Root",
+          device: device,
+          channel: channel,
+          type: entry.dataType || "Variant",
+          category: category,
+          value: val,
+          label: entry.inferred?.label || (isQuarantine ? "uncovered_corrupt_node" : "container_folder"),
+          tier: entry.inferred?.provenance ? `Tier 1: ${entry.inferred.provenance}` : (isQuarantine ? "Tier 4: Defective Node Isolation" : "Structural Scaffold"),
+          confidence: entry.inferred ? Math.round((entry.inferred.confidence || 1) * 100) + "%" : "0%",
+          evidence: entry.inferred?.evidence || ["Address space structure"],
+          status: isTelemetry ? "Actionable Signal" : (isQuarantine ? "Quarantined Anomaly" : "Uncovered Noise")
+        });
+      });
+
+      const total = catData.entries.length || 1;
+      const sigPct = Math.max(1, Math.round((telemetryCount / total) * 100));
+      const stalePct = Math.max(0, Math.round((quarantineCount / total) * 100));
+      const rem = 100 - sigPct - stalePct;
+      const fldPct = Math.round(rem * 0.52);
+      const schPct = rem - fldPct;
+
+      DATASETS["custom"] = {
+        url: url,
+        totalNodes: total,
+        telemetryNodes: telemetryCount,
+        noiseNodes: noiseCount,
+        quarantineCount: quarantineCount,
+        quarantineDesc: quarantineCount > 0 ? `${quarantineCount} Quarantined Anomalies` : "0 Quarantined Anomalies (All Channels Healthy)",
+        bar: { signals: sigPct, folders: fldPct, schemas: schPct, stale: stalePct },
+        nodes: discoveredNodes
+      };
+
+      currentTarget = "custom";
+      switchPreset("custom");
+    }
+
     // Oscilloscope Waveform Animation
     const canvas = document.getElementById("oscilloscope");
     const ctx = canvas.getContext("2d");
@@ -1707,25 +1934,21 @@
         ctx.stroke();
       }
 
-      // Shift and add random walk points
-      const last1 = wavePoints[wavePoints.length - 1];
-      const next1 = Math.max(10, Math.min(120, last1 + (Math.random() - 0.48) * 3));
-      wavePoints.shift();
-      wavePoints.push(next1);
-
-      const last2 = wavePoints2[wavePoints2.length - 1];
-      const next2 = Math.max(30, Math.min(110, last2 + (Math.random() - 0.5) * 4));
-      wavePoints2.shift();
-      wavePoints2.push(next2);
+      if (!liveTelemetryActive) {
+        // Smooth deterministic reference wave when live stream is offline
+        const t = Date.now() / 1000;
+        const sim1 = 26.95 + 1.2 * Math.sin(t * 1.5);
+        const sim2 = 67.5 + 2.0 * Math.cos(t * 1.2);
+        wavePoints.shift();
+        wavePoints.push(sim1);
+        wavePoints2.shift();
+        wavePoints2.push(sim2);
+      }
 
       // Draw Wave 1 (Emerald)
       drawWave(wavePoints, "#10b981", "rgba(16, 185, 129, 0.15)");
       // Draw Wave 2 (Cyan)
       drawWave(wavePoints2, "#06b6d4", "rgba(6, 182, 212, 0.08)");
-
-      // Update gauges live
-      document.getElementById("gVal1").innerHTML = `${next1.toFixed(1)}<span class="gauge-unit">%</span>`;
-      document.getElementById("gVal2").innerHTML = `${next2.toFixed(1)}<span class="gauge-unit">%</span>`;
 
       requestAnimationFrame(drawOscilloscope);
     }
@@ -1735,7 +1958,7 @@
       const step = canvas.width / (data.length - 1);
       data.forEach((val, i) => {
         const x = i * step;
-        const y = canvas.height - (val / 150) * canvas.height;
+        const y = canvas.height - (Math.max(0, Math.min(150, val)) / 150) * canvas.height;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
@@ -1743,7 +1966,6 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Fill area under curve
       ctx.lineTo(canvas.width, canvas.height);
       ctx.lineTo(0, canvas.height);
       ctx.closePath();
@@ -1751,102 +1973,84 @@
       ctx.fill();
     }
 
-    // Try connecting to live Atlas backend if running locally
+    // Real-Time Telemetry & Health Polling
     let liveCatalogLoaded = false;
     async function checkLiveAtlas() {
       try {
         const res = await fetch("/health");
         if (res.ok) {
           const health = await res.json();
+          document.getElementById("connStatusDot").style.backgroundColor = "var(--accent-emerald)";
           document.getElementById("connStatusText").innerText = `Live Engine Active · ${health.collector?.monitoredItemsActive || 0} Subscriptions`;
-          document.getElementById("kpiTotalNodes").innerText = health.machine?.catalogEntries || 1031;
 
           if (!liveCatalogLoaded) {
             const catRes = await fetch("/catalog");
             if (catRes.ok) {
               const catData = await catRes.json();
-              loadLiveCatalog(catData);
+              applyCatalogData(catData, health.serverUri || "opc.tcp://localhost");
               liveCatalogLoaded = true;
             }
           }
         }
-      } catch (e) {
-        // Fallback to embedded demo mode
-      }
+      } catch (e) { }
     }
 
-    function loadLiveCatalog(catData) {
-      if (!catData || !catData.entries) return;
-      const liveNodes = [];
-      let telemetryCount = 0;
-      let noiseCount = 0;
-      let quarantineCount = 0;
-
-      catData.entries.forEach(entry => {
-        const isQuarantine = entry.id === "i=6095" || (entry.path && entry.path.includes("OnlineAccess"));
-        const isTelemetry = entry.inferred != null;
-        const category = isQuarantine ? "quarantine" : (isTelemetry ? "telemetry" : "noise");
-
-        if (isTelemetry) telemetryCount++;
-        else if (isQuarantine) quarantineCount++;
-        else noiseCount++;
-
-        let device = "MachineTool";
-        if (entry.path) {
-          const m = entry.path.match(/Machines\/([^/]+)/);
-          if (m) device = m[1];
+    async function pollLiveTelemetry() {
+      try {
+        const res = await fetch("/api/live");
+        if (!res.ok) {
+          liveTelemetryActive = false;
+          return;
         }
-        if (device === "MachineTool" && entry.id) {
-          const m = entry.id.match(/example\.com\/([^/]+)\//) || entry.id.match(/hexagonmi\.com\/([^/]+)\//) || entry.id.match(/wenzel-group\.com\/([^/]+)\//);
-          if (m) device = m[1];
+        const signals = await res.json();
+        if (Array.isArray(signals) && signals.length > 0) {
+          liveTelemetryActive = true;
+          document.getElementById("connStatusDot").style.backgroundColor = "var(--accent-emerald)";
+          document.getElementById("connStatusText").innerText = `Live Telemetry Active · ${signals.length} Signals`;
+
+          const numerics = signals.filter(s => s.numericValue != null);
+          if (numerics.length > 0) {
+            const v1 = numerics[0].numericValue;
+            wavePoints.shift();
+            wavePoints.push(v1);
+
+            const v2 = numerics.length > 1 ? numerics[1].numericValue : v1 * 0.8;
+            wavePoints2.shift();
+            wavePoints2.push(v2);
+          }
+
+          const target = DATASETS[currentTarget];
+          if (target && target.nodes) {
+            signals.forEach(sig => {
+              const matched = target.nodes.find(n => n.id === sig.id);
+              if (matched) {
+                matched.value = sig.value !== null && sig.value !== undefined ? `${sig.value} ${sig.unit || ''}`.trim() : 'NULL';
+                matched.quality = sig.quality;
+              }
+            });
+
+            const actionables = target.nodes.filter(n => n.category === "telemetry");
+            renderTelemetryGauges(actionables);
+
+            if (currentInspectedNode) {
+              const updated = signals.find(s => s.id === currentInspectedNode.id);
+              if (updated) {
+                document.getElementById("inspValue").innerText = updated.value !== null && updated.value !== undefined ? `${updated.value} ${updated.unit || ''}`.trim() : 'NULL';
+              }
+            }
+          }
         }
-
-        let channel = "";
-        if (entry.path) {
-          const cm = entry.path.match(/(Channel \d+)/);
-          if (cm) channel = cm[1];
-        }
-
-        const name = channel ? `${entry.browseName || 'Signal'} (${channel})` : (entry.browseName || entry.displayName || 'Node');
-        const val = entry.inferred?.label === "feed_override" ? "26.95 %" : (entry.inferred?.label === "operating_mode" ? "1 (AUTOMATIC)" : (isQuarantine ? "BadWaitingForInitialData / NULL" : "Directory Scaffold"));
-
-        liveNodes.push({
-          id: entry.id,
-          name: name,
-          path: entry.path || "Root",
-          device: device,
-          channel: channel,
-          type: entry.dataType || "Variant",
-          category: category,
-          value: val,
-          label: entry.inferred?.label || (isQuarantine ? "uncovered_corrupt_node" : "container_folder"),
-          tier: entry.inferred?.provenance ? `Tier 1: ${entry.inferred.provenance}` : (isQuarantine ? "Tier 4: Defective Node Isolation" : "Structural Scaffold"),
-          confidence: entry.inferred ? Math.round((entry.inferred.confidence || 1) * 100) + "%" : "0%",
-          evidence: entry.inferred?.evidence || (isQuarantine ? ["Server returns BadWaitingForInitialData upon attribute read", "Quarantined by Atlas QualityGuard circuit breaker"] : ["Empty container folder or metadata structure."]),
-          status: isTelemetry ? "Actionable Signal" : (isQuarantine ? "Quarantined Anomaly" : "Uncovered Noise")
-        });
-      });
-
-      DATASETS.umati.nodes = liveNodes;
-      DATASETS.umati.totalNodes = catData.entries.length;
-      DATASETS.umati.telemetryNodes = telemetryCount;
-      DATASETS.umati.noiseNodes = noiseCount;
-      DATASETS.umati.quarantineCount = quarantineCount;
-
-      document.getElementById("kpiTotalNodes").innerText = catData.entries.length;
-      document.getElementById("kpiTelemetryNodes").innerText = telemetryCount;
-      document.getElementById("kpiTelemetryPercent").innerText = ((telemetryCount / catData.entries.length) * 100).toFixed(1) + "% of address space";
-      document.getElementById("kpiNoiseNodes").innerText = noiseCount;
-      document.getElementById("kpiQuarantineCount").innerText = quarantineCount;
-
-      renderNodeList(liveNodes);
+      } catch {
+        liveTelemetryActive = false;
+      }
     }
 
     // Initialize
     switchPreset("umati");
     requestAnimationFrame(drawOscilloscope);
     checkLiveAtlas();
-    setInterval(checkLiveAtlas, 2000);
+    setInterval(checkLiveAtlas, 2500);
+    setInterval(pollLiveTelemetry, 1000);
   </script>
 </body>
 </html>
