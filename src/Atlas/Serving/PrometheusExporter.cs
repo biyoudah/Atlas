@@ -213,7 +213,7 @@ public static class PrometheusExporter
             sb.AppendLine($"atlas_machine_connected{{machine=\"{machineName}\"}} {(diagnostics.IsConnected ? "1" : "0")}");
         }
 
-        return sb.ToString();
+        return sb.Replace("\r\n", "\n").ToString();
     }
 
     private static string FormatMetricName(string label, string? unit)
