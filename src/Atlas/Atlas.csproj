@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Atlas</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <PackageId>Atlas.Industrial.OpcUa</PackageId>
+    <Version>0.1.0-alpha</Version>
+    <Authors>Ayoub Ouadah and Atlas Contributors</Authors>
+    <Description>Atlas — Industrial OPC UA Telemetry Adapter, Address Space Discovery &amp; Turnkey Visualization Engine.</Description>
+    <PackageTags>opcua;industrial-iot;mtconnect;prometheus;grafana;mcp;iiot;plc;cnc</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/biyoudah/Atlas</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/biyoudah/Atlas</PackageProjectUrl>
+    <RootNamespace>Atlas</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="2.0.1" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Configuration" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageReference Include="JsonSchema.Net" Version="7.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Packs\**\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Opc.Ua" />
+    <Using Include="Opc.Ua.Range" Alias="Range" />
+  </ItemGroup>
+</Project>

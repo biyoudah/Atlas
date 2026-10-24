@@ -5,9 +5,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["dotnet", "/app/fakecnc/Opc.Ua.FakeCnc.dll", "-p", "62541"]
+    command: ["dotnet", "/app/fakecnc/Atlas.FakeCnc.dll", "-p", "62541"]
     ports:
       - "62541:62541"
+    restart: unless-stopped
+
+  # Standard open-source C-based OPC UA reference server
+  open62541:
+    image: open62541/open62541:latest
+    ports:
+      - "4840:4840"
     restart: unless-stopped
 
   atlas:

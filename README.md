@@ -1,14 +1,15 @@
 # 🌐 Atlas — Industrial OPC UA Telemetry Adapter & Address Space Engine
 
 [![CI](https://github.com/biyoudah/Atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/biyoudah/Atlas/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/biyoudah/Atlas/actions/workflows/codeql.yml/badge.svg)](https://github.com/biyoudah/Atlas/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
 [![Standard](https://img.shields.io/badge/OPC_UA-v2.0-orange.svg)](https://opcfoundation.org/)
 [![Status](https://img.shields.io/badge/Status-Alpha%20Prototype-yellow.svg)]()
 
-**Atlas** is an open-source edge telemetry engine for industrial OPC UA controllers (Siemens S7-1500/840D, Fanuc 30i/31i, Mitsubishi M800, and standard OPC UA servers). It decouples operational technology (OT) machine data from proprietary software barriers by providing automated address space discovery, complex type flattening, ANSI/MTConnect semantic classification, network micro-cut hysteresis, ISO 22400-2 OEE calculation, turnkey Grafana v10 dashboard generation, Prometheus metrics export, and native Model Context Protocol (MCP) endpoints for AI assistants.
+**Atlas** is an open-source edge telemetry engine for industrial OPC UA controllers (Siemens S7-1500/840D, Fanuc 30i/31i, Mitsubishi M800, open62541, and standard OPC UA servers). It decouples operational technology (OT) machine data from proprietary software barriers by providing automated address space discovery, complex type flattening, ANSI/MTConnect semantic classification, network micro-cut hysteresis, ISO 22400-2 OEE calculation, turnkey Grafana v10 dashboard generation, Prometheus metrics export, and native Model Context Protocol (MCP) endpoints for AI assistants.
 
-> **Project Status:** **Alpha / Active OT Prototype**. Currently verified against a high-fidelity 5-axis CNC simulation server (`Opc.Ua.FakeCnc`) with 67 automated unit and integration tests. In-situ plant pilots should follow the deployment and network guidelines in [SECURITY.md](SECURITY.md).
+> **Project Status:** **Alpha / Active OT Prototype**. Currently verified against a high-fidelity 5-axis CNC simulation server (`Atlas.FakeCnc`) and standard reference servers (`open62541`) with 69 automated unit, integration, and schema validation tests. In-situ plant pilots should follow the deployment and network guidelines in [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -48,7 +49,7 @@
 ## 🚀 Quickstart
 
 ### Option A: Run with Docker Compose (Single Command Demo)
-Launch the entire stack (Simulated 5-axis CNC + Atlas Engine + Prometheus + Grafana) with one command:
+Launch the entire stack (Simulated 5-axis CNC + Reference C Server + Atlas Engine + Prometheus + Grafana) with one command:
 
 ```bash
 docker compose up -d
@@ -57,6 +58,7 @@ docker compose up -d
 * **Prometheus:** [http://localhost:9091](http://localhost:9091)
 * **Grafana:** [http://localhost:3000](http://localhost:3000) (User: `admin`, Password: `admin`)
 * **Simulated CNC Server:** `opc.tcp://localhost:62541/FakeCncServer`
+* **Reference open62541 C Server:** `opc.tcp://localhost:4840`
 
 ### Option B: Build & Run from Source (.NET 8 SDK)
 ```bash
@@ -73,23 +75,23 @@ dotnet test Atlas.slnx
 ### 1. Address Space Crawl & Export
 ```bash
 # Crawl anonymously and export to JSON
-dotnet run --project src/Opc.Ua.Atlas -- crawl opc.tcp://192.168.1.50:4840 -f json -o catalog.json
+dotnet run --project src/Atlas -- crawl opc.tcp://192.168.1.50:4840 -f json -o catalog.json
 
 # Secure credential resolution via environment variable (avoids ps -ef exposure)
-OPC_UA_PASSWORD="mySecretPassword" dotnet run --project src/Opc.Ua.Atlas -- crawl opc.tcp://192.168.1.50:4840 \
+OPC_UA_PASSWORD="mySecretPassword" dotnet run --project src/Atlas -- crawl opc.tcp://192.168.1.50:4840 \
   -u operator \
   --pack siemens-s7-1500 \
   -f json -o catalog.json
 
 # Export to CSV or OPC UA Part 6 NodeSet2 XML
-dotnet run --project src/Opc.Ua.Atlas -- crawl opc.tcp://192.168.1.50:4840 -f csv -o catalog.csv
-dotnet run --project src/Opc.Ua.Atlas -- crawl opc.tcp://192.168.1.50:4840 -f nodeset2 -o nodeset2.xml
+dotnet run --project src/Atlas -- crawl opc.tcp://192.168.1.50:4840 -f csv -o catalog.csv
+dotnet run --project src/Atlas -- crawl opc.tcp://192.168.1.50:4840 -f nodeset2 -o nodeset2.xml
 ```
 
 ### 2. Unmasking Hidden Tags (`diff-live`)
 Compares the accessible address space between an Anonymous role and an Authenticated role (e.g., Maintenance/Admin) to detect hidden registers or permission elevations:
 ```bash
-dotnet run --project src/Opc.Ua.Atlas -- diff-live opc.tcp://192.168.1.50:4840 \
+dotnet run --project src/Atlas -- diff-live opc.tcp://192.168.1.50:4840 \
   --target-user admin --target-password-env ADMIN_PASSWORD \
   -o diff_report.md
 ```
@@ -97,7 +99,7 @@ dotnet run --project src/Opc.Ua.Atlas -- diff-live opc.tcp://192.168.1.50:4840 \
 ### 3. Generate Turnkey Grafana Dashboard
 Generates a production-ready Grafana v10 JSON dashboard organized by MTConnect categories (Conditions at top, Event KPI cards in middle, Sample process gauges at bottom):
 ```bash
-dotnet run --project src/Opc.Ua.Atlas -- dashboard catalog.json \
+dotnet run --project src/Atlas -- dashboard catalog.json \
   -o grafana_dashboard.json \
   -t "CNC Milling Center 01" \
   --machine "cnc_mill_01"
@@ -105,7 +107,7 @@ dotnet run --project src/Opc.Ua.Atlas -- dashboard catalog.json \
 
 ### 4. Run the Serving Layer (Prometheus + WebSocket + MES Reconciliation)
 ```bash
-dotnet run --project src/Opc.Ua.Atlas -- serve opc.tcp://192.168.1.50:4840 \
+dotnet run --project src/Atlas -- serve opc.tcp://192.168.1.50:4840 \
   --port 9090 \
   --machine "cnc_mill_01" \
   --pack siemens-s7-1500 \
@@ -119,7 +121,7 @@ dotnet run --project src/Opc.Ua.Atlas -- serve opc.tcp://192.168.1.50:4840 \
 ### 5. Native Model Context Protocol (MCP) Server for AI Assistants
 Atlas provides an stdio JSON-RPC 2.0 MCP server. Connect Claude Desktop, Cursor, or local agents:
 ```bash
-dotnet run --project src/Opc.Ua.Atlas -- mcp --catalog catalog.json
+dotnet run --project src/Atlas -- mcp --catalog catalog.json
 ```
 
 **Claude Desktop Configuration (`claude_desktop_config.json`):**
@@ -131,7 +133,7 @@ dotnet run --project src/Opc.Ua.Atlas -- mcp --catalog catalog.json
       "args": [
         "run",
         "--project",
-        "/absolute/path/to/Atlas/src/Opc.Ua.Atlas",
+        "/absolute/path/to/Atlas/src/Atlas",
         "--",
         "mcp",
         "--catalog",
@@ -242,16 +244,27 @@ atlas_machine_connected{machine="cnc_mill_01"} 1
 
 ---
 
+## 📦 Community Mapping Packs & Schema Validation
+
+Atlas ships with built-in mapping packs for:
+* **Siemens:** S7-1500 / Sinumerik ONE / 840D sl (`src/Atlas/Packs/siemens-s7-1500.json`)
+* **Fanuc:** 30i / 31i / 32i / 0i-F (`src/Atlas/Packs/fanuc-31i.json`)
+* **Mitsubishi:** M800 / M80 Series (`src/Atlas/Packs/mitsubishi-m800.json`)
+
+To author or validate a custom pack for your factory's PLC or CNC models, see the [Mapping Pack Authoring Guide](docs/PACK_GUIDE.md). All mapping packs are validated against the formal JSON Schema at [`schema/mapping-pack.schema.json`](schema/mapping-pack.schema.json).
+
+---
+
 ## ⚠️ Known Limitations & Boundaries
 
-1. **Evaluation Scope:** All tests and benchmarks have been executed against simulated industrial servers (`Opc.Ua.FakeCnc`). In-situ physical machine pilots are planned in subsequent roadmap phases.
+1. **Evaluation Scope:** All tests and benchmarks have been executed against simulated industrial servers (`Atlas.FakeCnc`) and reference C-stack servers (`open62541`). In-situ physical machine pilots are planned in subsequent roadmap phases.
 2. **Read-Only Telemetry Focus:** Atlas is optimized for data ingestion, discovery, and observability. It is **not** a deterministic soft-PLC or motion controller. While an audited write gateway exists for setpoints (e.g. override limits), physical safety interlocks must always remain on hardwired safety circuits or certified safety PLCs.
 3. **Endpoint Authentication:** Built-in HTTP and WebSocket endpoints are unauthenticated by design and bind to `localhost` by default. Production deployments across network boundaries require a reverse proxy (e.g., NGINX, Envoy) with TLS and bearer tokens (see [SECURITY.md](SECURITY.md)).
 4. **Label Cardinality:** By default, metric names identify signals cleanly (`opcua_spindle_speed_rpm{machine="..."}`). Attaching raw full `node_id` strings to labels can cause series cardinality explosion in Prometheus across large plants; use `--low-cardinality` to omit them.
 
 ---
 
-## 🛡️ Automated Verification Suite (67 Tests)
+## 🛡️ Automated Verification Suite (69 Tests)
 
 | Test Fixture | Tests | Status | Domain Capabilities Verified |
 |---|---|---|---|
@@ -259,6 +272,7 @@ atlas_machine_connected{machine="cnc_mill_01"} 1
 | `TypeDecoderTests` | 7 | **PASS** | `ExtensionObject` runtime decoding, struct field flattening |
 | `ProfilerTests` | 9 | **PASS** | Passive signal classification, correlation matrices |
 | `SemanticLabelerTests` | 7 | **PASS** | Multi-factor heuristic inference, mapping pack priority |
+| `MappingPackSchemaTests` | 2 | **PASS** | Draft 2020-12 JSON Schema validation on all vendor packs |
 | `PrometheusAndDashboardTests` | 12 | **PASS** | Prometheus v0.0.4 exposition, state-sets, Grafana schema, low cardinality |
 | `QualityGuardTests` | 5 | **PASS** | Micro-cut hysteresis (Uncertain $\rightarrow$ Bad), PLC reset smoothing, staleness timeout |
 | `SignalCategoryAndSemanticsTests` | 3 | **PASS** | ANSI/MTConnect taxonomy (Sample, Event, Condition), pack overrides |
@@ -266,7 +280,7 @@ atlas_machine_connected{machine="cnc_mill_01"} 1
 | `OeeCalculatorTests` | 4 | **PASS** | ISO 22400-2 TRS calculation, OF transitions, zero-divide edge cases |
 | `CollectorDiagnosticsTests` | 2 | **PASS** | Gateway self-supervision, scrape latency, uptime gauge |
 | `AtlasMcpServerTests` | 6 | **PASS** | JSON-RPC 2.0 stdio protocol, tool manifest, address space search, write rejection |
-| **Total** | **67** | **100% PASS** | **End-to-End Suite Clean** |
+| **Total** | **69** | **100% PASS** | **End-to-End Suite Clean** |
 
 ---
 
