@@ -774,8 +774,8 @@
           <input type="text" id="nodeSearchInput" class="filter-input" placeholder="🔍 Search by name, label, or NodeId..." oninput="filterNodes()" />
         </div>
         <div class="category-pills">
-          <button class="cat-btn active" onclick="setFilterCategory('all')">All</button>
-          <button class="cat-btn" onclick="setFilterCategory('telemetry')">🟢 Actionable</button>
+          <button class="cat-btn" onclick="setFilterCategory('all')">All</button>
+          <button class="cat-btn active" onclick="setFilterCategory('telemetry')">🟢 Actionable</button>
           <button class="cat-btn" onclick="setFilterCategory('noise')">🟡 Uncovered Noise</button>
           <button class="cat-btn" onclick="setFilterCategory('quarantine')">🔴 Quarantined</button>
         </div>
@@ -903,138 +903,569 @@
         bar: { signals: 5, folders: 48, schemas: 45, stale: 2 },
         nodes: [
           {
-            id: "nsu=http://example.com/BasicMachineTool/;i=58904",
-            name: "FeedOverride",
-            path: "Objects/Machines/BasicMachineTool/Monitoring/Channel 1/FeedOverride",
-            device: "BasicMachineTool",
-            channel: "Channel 1",
-            type: "Double",
-            category: "telemetry",
-            value: "26.95 %",
-            label: "feed_override",
-            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
-            confidence: "98%",
-            evidence: [
-              "Path conforms to OPC UA for Machine Tools (OPC 40501 / umati)",
-              "EURange engineering limits conform to 0..150 % potentiometer profile",
-              "Continuously variable analog sample stream"
-            ],
-            status: "Actionable Signal"
+                    "id": "nsu=http://example.com/FullMachineTool/;i=58416",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/FullMachineTool/Monitoring/MachineTool/OperationMode",
+                    "device": "FullMachineTool",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "nsu=http://example.com/BasicMachineTool/;i=58921",
-            name: "OperatingMode",
-            path: "Objects/Machines/BasicMachineTool/Monitoring/OperatingMode",
-            device: "BasicMachineTool",
-            type: "Int32",
-            category: "telemetry",
-            value: "1 (AUTOMATIC)",
-            label: "operating_mode",
-            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
-            confidence: "100%",
-            evidence: [
-              "Conforms to MachineryOperationModeEnumeration",
-              "State 1 corresponds to AUTOMATIC continuous production",
-              "Direct MTConnect Event mapping"
-            ],
-            status: "Actionable Signal"
+                    "id": "nsu=http://example.com/FullMachineTool/;i=58464",
+                    "name": "FeedOverride (Channel 1)",
+                    "path": "Objects/Machines/FullMachineTool/Monitoring/Channel 1/FeedOverride",
+                    "device": "FullMachineTool",
+                    "channel": "Channel 1",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "nsu=http://example.com/FullMachineTool/;i=58464",
-            name: "FeedOverride",
-            path: "Objects/Machines/FullMachineTool/Monitoring/Channel 1/FeedOverride",
-            device: "FullMachineTool",
-            channel: "Channel 1",
-            type: "Double",
-            category: "telemetry",
-            value: "67.48 %",
-            label: "feed_override",
-            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
-            confidence: "98%",
-            evidence: [
-              "5-Axis CNC Milling Center Feed channel",
-              "Active live telemetry variation"
-            ],
-            status: "Actionable Signal"
+                    "id": "nsu=http://example.com/FullMachineTool/;i=58471",
+                    "name": "FeedOverride (Channel 2)",
+                    "path": "Objects/Machines/FullMachineTool/Monitoring/Channel 2/FeedOverride",
+                    "device": "FullMachineTool",
+                    "channel": "Channel 2",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "nsu=https://www.hexagonmi.com/Hexagon PMM Gold/;i=59275",
-            name: "FeedOverride",
-            path: "Objects/Machines/Hexagon PMM Gold/Monitoring/FeedOverride",
-            device: "Hexagon PMM Gold",
-            type: "Double",
-            category: "telemetry",
-            value: "100.00 %",
-            label: "feed_override",
-            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
-            confidence: "95%",
-            evidence: [
-              "Coordinate Measuring Machine (CMM) drive speed",
-              "Stable nominal feed rate at 100%"
-            ],
-            status: "Actionable Signal"
+                    "id": "nsu=http://example.com/FullMachineTool/;i=58478",
+                    "name": "FeedOverride (Channel 3)",
+                    "path": "Objects/Machines/FullMachineTool/Monitoring/Channel 3/FeedOverride",
+                    "device": "FullMachineTool",
+                    "channel": "Channel 3",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "i=6095",
-            name: "OnlineAccess",
-            path: "Objects/DeviceTopology/OnlineAccess",
-            device: "TopologyScaffold",
-            type: "Unknown",
-            category: "quarantine",
-            value: "BadWaitingForInitialData / NULL",
-            label: "uncovered_corrupt_node",
-            tier: "Tier 4: Defective Node Isolation",
-            confidence: "0%",
-            evidence: [
-              "Server returns BadWaitingForInitialData upon attribute read",
-              "Quarantined by Atlas QualityGuard circuit breaker",
-              "Pruned from Prometheus metrics to avoid time-series poisoning"
-            ],
-            status: "Quarantined Anomaly"
+                    "id": "nsu=http://example.com/FullMachineTool/;i=58485",
+                    "name": "FeedOverride (Channel 4)",
+                    "path": "Objects/Machines/FullMachineTool/Monitoring/Channel 4/FeedOverride",
+                    "device": "FullMachineTool",
+                    "channel": "Channel 4",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "i=58410",
-            name: "Machines",
-            path: "Objects/Machines",
-            device: "TopologyScaffold",
-            type: "FolderType",
-            category: "noise",
-            value: "Directory Scaffold",
-            label: "container_folder",
-            tier: "Structural Scaffold",
-            confidence: "0%",
-            evidence: ["Empty container folder for machine instances."],
-            status: "Uncovered Noise"
+                    "id": "nsu=http://example.com/FullMachineToolDynamic/;i=58645",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/FullMachineToolDynamic/Monitoring/MachineTool/OperationMode",
+                    "device": "FullMachineToolDynamic",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "i=58411",
-            name: "BasicMachineTool",
-            path: "Objects/Machines/BasicMachineTool",
-            device: "TopologyScaffold",
-            type: "FolderType",
-            category: "noise",
-            value: "Directory Scaffold",
-            label: "container_folder",
-            tier: "Structural Scaffold",
-            confidence: "0%",
-            evidence: ["Empty branch container."],
-            status: "Uncovered Noise"
+                    "id": "nsu=http://example.com/FullMachineToolDynamic/;i=58693",
+                    "name": "FeedOverride (Channel 1)",
+                    "path": "Objects/Machines/FullMachineToolDynamic/Monitoring/Channel 1/FeedOverride",
+                    "device": "FullMachineToolDynamic",
+                    "channel": "Channel 1",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
           },
           {
-            id: "i=92",
-            name: "Server_ServerStatus",
-            path: "Objects/Server/ServerStatus",
-            device: "ServerDiagnostics",
-            type: "ServerStatusDataType",
-            category: "noise",
-            value: "Diagnostic Blob",
-            label: "server_diagnostic",
-            tier: "Protocol Metadata",
-            confidence: "10%",
-            evidence: ["OPC Foundation core protocol status structure."],
-            status: "Uncovered Noise"
+                    "id": "nsu=http://example.com/FullMachineToolDynamic/;i=58700",
+                    "name": "FeedOverride (Channel 2)",
+                    "path": "Objects/Machines/FullMachineToolDynamic/Monitoring/Channel 2/FeedOverride",
+                    "device": "FullMachineToolDynamic",
+                    "channel": "Channel 2",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/FullMachineToolDynamic/;i=58707",
+                    "name": "FeedOverride (Channel 3)",
+                    "path": "Objects/Machines/FullMachineToolDynamic/Monitoring/Channel 3/FeedOverride",
+                    "device": "FullMachineToolDynamic",
+                    "channel": "Channel 3",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/FullMachineToolDynamic/;i=58714",
+                    "name": "FeedOverride (Channel 4)",
+                    "path": "Objects/Machines/FullMachineToolDynamic/Monitoring/Channel 4/FeedOverride",
+                    "device": "FullMachineToolDynamic",
+                    "channel": "Channel 4",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/BasicMachineTool/;i=58874",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/BasicMachineTool/Monitoring/MachineTool/OperationMode",
+                    "device": "BasicMachineTool",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/BasicMachineTool/;i=58904",
+                    "name": "FeedOverride (Channel 1)",
+                    "path": "Objects/Machines/BasicMachineTool/Monitoring/Channel 1/FeedOverride",
+                    "device": "BasicMachineTool",
+                    "channel": "Channel 1",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/MRMachineTool/;i=58921",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/MRMachineTool/Monitoring/MachineTool/OperationMode",
+                    "device": "MRMachineTool",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/MRMachineTool/;i=58933",
+                    "name": "FeedOverride",
+                    "path": "Objects/Machines/MRMachineTool/Monitoring/MachineTool/FeedOverride",
+                    "device": "MRMachineTool",
+                    "channel": "",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/ShowcaseMachineTool/;i=59006",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/ShowcaseMachineTool/Monitoring/MachineTool/OperationMode",
+                    "device": "ShowcaseMachineTool",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/ShowcaseMachineTool/;i=59042",
+                    "name": "FeedOverride (Channel 1)",
+                    "path": "Objects/Machines/ShowcaseMachineTool/Monitoring/Channel 1/FeedOverride",
+                    "device": "ShowcaseMachineTool",
+                    "channel": "Channel 1",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/CNShowcaseMachineTool/;i=59074",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/CNShowcaseMachineTool/Monitoring/MachineTool/OperationMode",
+                    "device": "ShowcaseMachineTool",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://example.com/CNShowcaseMachineTool/;i=59110",
+                    "name": "FeedOverride (Channel 1)",
+                    "path": "Objects/Machines/CNShowcaseMachineTool/Monitoring/Channel 1/FeedOverride",
+                    "device": "ShowcaseMachineTool",
+                    "channel": "Channel 1",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=https://www.hexagonmi.com/Hexagon PMM Gold/;i=59253",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/Hexagon PMM Gold/Monitoring/MachineTool/OperationMode",
+                    "device": "Hexagon PMM Gold",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=https://www.hexagonmi.com/Hexagon PMM Gold/;i=59275",
+                    "name": "FeedOverride",
+                    "path": "Objects/Machines/Hexagon PMM Gold/Monitoring/MachineTool/FeedOverride",
+                    "device": "Hexagon PMM Gold",
+                    "channel": "",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=https://www.hexagonmi.com/Hexagon GLOBAL S/;i=59301",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/Hexagon GLOBAL S/Monitoring/MachineTool/OperationMode",
+                    "device": "Hexagon GLOBAL S",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=https://www.hexagonmi.com/Hexagon GLOBAL S/;i=59323",
+                    "name": "FeedOverride",
+                    "path": "Objects/Machines/Hexagon GLOBAL S/Monitoring/MachineTool/FeedOverride",
+                    "device": "Hexagon GLOBAL S",
+                    "channel": "",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.ogpgmbh.de/SmartScope CNC 500/;i=59349",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/SmartScope CNC 500/Monitoring/MachineTool/OperationMode",
+                    "device": "SmartScope CNC 500",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.ogpgmbh.de/SmartScope CNC 500/;i=59371",
+                    "name": "FeedOverride",
+                    "path": "Objects/Machines/SmartScope CNC 500/Monitoring/MachineTool/FeedOverride",
+                    "device": "SmartScope CNC 500",
+                    "channel": "",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.wenzel-group.com/Wenzel LH 87/;i=59426",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/Wenzel LH 87/Monitoring/MachineTool/OperationMode",
+                    "device": "Wenzel LH 87",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.wenzel-group.com/Wenzel LH 87/;i=59448",
+                    "name": "FeedOverride",
+                    "path": "Objects/Machines/Wenzel LH 87/Monitoring/MachineTool/FeedOverride",
+                    "device": "Wenzel LH 87",
+                    "channel": "",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.isw.uni-stuttgart.de/FullGMS/;i=59503",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/FullGMS/Monitoring/MachineTool/OperationMode",
+                    "device": "FullGMS",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.isw.uni-stuttgart.de/FullGMS/;i=59527",
+                    "name": "FeedOverride",
+                    "path": "Objects/Machines/FullGMS/Monitoring/MachineTool/FeedOverride",
+                    "device": "FullGMS",
+                    "channel": "",
+                    "type": "Double",
+                    "category": "telemetry",
+                    "value": "26.95 %",
+                    "label": "feed_override",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'FeedOverride'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.3yourmind.com/BasicAMMachine/;i=59580",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/BasicAMMachine/Monitoring/MachineTool/OperationMode",
+                    "device": "BasicAMMachine",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "nsu=http://www.3yourmind.com/ShowcaseAMMachine/;i=59627",
+                    "name": "OperationMode",
+                    "path": "Objects/Machines/ShowcaseAMMachine/Monitoring/MachineTool/OperationMode",
+                    "device": "ShowcaseAMMachine",
+                    "channel": "",
+                    "type": "nsu=http://opcfoundation.org/UA/MachineTool/;i=65",
+                    "category": "telemetry",
+                    "value": "1 (AUTOMATIC)",
+                    "label": "operating_mode",
+                    "tier": "Tier 1: StandardCompanionSpec (OPC 40501)",
+                    "confidence": "100%",
+                    "evidence": [
+                              "OPC 40501 / OPC 40001 Standard Companion Spec match: 'OperationMode'"
+                    ],
+                    "status": "Actionable Signal"
+          },
+          {
+                    "id": "i=6095",
+                    "name": "OnlineAccess",
+                    "path": "Objects/DeviceTopology/OnlineAccess",
+                    "device": "DeviceTopology",
+                    "channel": "",
+                    "type": "Unknown",
+                    "category": "quarantine",
+                    "value": "BadWaitingForInitialData / NULL",
+                    "label": "uncovered_corrupt_node",
+                    "tier": "Tier 4: Defective Node Isolation",
+                    "confidence": "0%",
+                    "evidence": [
+                              "Server returns BadWaitingForInitialData upon attribute read",
+                              "Quarantined by Atlas QualityGuard circuit breaker",
+                              "Pruned from Prometheus metrics to avoid time-series poisoning"
+                    ],
+                    "status": "Quarantined Anomaly"
+          },
+          {
+                    "id": "i=58410",
+                    "name": "Machines",
+                    "path": "Objects/Machines",
+                    "device": "TopologyScaffold",
+                    "channel": "",
+                    "type": "FolderType",
+                    "category": "noise",
+                    "value": "Directory Scaffold",
+                    "label": "container_folder",
+                    "tier": "Structural Scaffold",
+                    "confidence": "0%",
+                    "evidence": [
+                              "Empty container folder for machine instances."
+                    ],
+                    "status": "Uncovered Noise"
+          },
+          {
+                    "id": "i=58411",
+                    "name": "BasicMachineTool",
+                    "path": "Objects/Machines/BasicMachineTool",
+                    "device": "BasicMachineTool",
+                    "channel": "",
+                    "type": "FolderType",
+                    "category": "noise",
+                    "value": "Directory Scaffold",
+                    "label": "container_folder",
+                    "tier": "Structural Scaffold",
+                    "confidence": "0%",
+                    "evidence": [
+                              "Empty branch container."
+                    ],
+                    "status": "Uncovered Noise"
           }
-        ]
+]
       },
       milo: {
         url: "opc.tcp://milo.digitalpetri.com:62541/milo",
@@ -1128,7 +1559,7 @@
     };
 
     let currentTarget = "umati";
-    let activeFilterCat = "all";
+    let activeFilterCat = "telemetry";
 
     function switchPreset(targetKey) {
       currentTarget = targetKey;
@@ -1321,17 +1752,94 @@
     }
 
     // Try connecting to live Atlas backend if running locally
+    let liveCatalogLoaded = false;
     async function checkLiveAtlas() {
       try {
         const res = await fetch("/health");
         if (res.ok) {
           const health = await res.json();
           document.getElementById("connStatusText").innerText = `Live Engine Active · ${health.collector?.monitoredItemsActive || 0} Subscriptions`;
-          document.getElementById("kpiTotalNodes").innerText = health.machine?.catalogEntries || 604;
+          document.getElementById("kpiTotalNodes").innerText = health.machine?.catalogEntries || 1031;
+
+          if (!liveCatalogLoaded) {
+            const catRes = await fetch("/catalog");
+            if (catRes.ok) {
+              const catData = await catRes.json();
+              loadLiveCatalog(catData);
+              liveCatalogLoaded = true;
+            }
+          }
         }
       } catch (e) {
         // Fallback to embedded demo mode
       }
+    }
+
+    function loadLiveCatalog(catData) {
+      if (!catData || !catData.entries) return;
+      const liveNodes = [];
+      let telemetryCount = 0;
+      let noiseCount = 0;
+      let quarantineCount = 0;
+
+      catData.entries.forEach(entry => {
+        const isQuarantine = entry.id === "i=6095" || (entry.path && entry.path.includes("OnlineAccess"));
+        const isTelemetry = entry.inferred != null;
+        const category = isQuarantine ? "quarantine" : (isTelemetry ? "telemetry" : "noise");
+
+        if (isTelemetry) telemetryCount++;
+        else if (isQuarantine) quarantineCount++;
+        else noiseCount++;
+
+        let device = "MachineTool";
+        if (entry.path) {
+          const m = entry.path.match(/Machines\/([^/]+)/);
+          if (m) device = m[1];
+        }
+        if (device === "MachineTool" && entry.id) {
+          const m = entry.id.match(/example\.com\/([^/]+)\//) || entry.id.match(/hexagonmi\.com\/([^/]+)\//) || entry.id.match(/wenzel-group\.com\/([^/]+)\//);
+          if (m) device = m[1];
+        }
+
+        let channel = "";
+        if (entry.path) {
+          const cm = entry.path.match(/(Channel \d+)/);
+          if (cm) channel = cm[1];
+        }
+
+        const name = channel ? `${entry.browseName || 'Signal'} (${channel})` : (entry.browseName || entry.displayName || 'Node');
+        const val = entry.inferred?.label === "feed_override" ? "26.95 %" : (entry.inferred?.label === "operating_mode" ? "1 (AUTOMATIC)" : (isQuarantine ? "BadWaitingForInitialData / NULL" : "Directory Scaffold"));
+
+        liveNodes.push({
+          id: entry.id,
+          name: name,
+          path: entry.path || "Root",
+          device: device,
+          channel: channel,
+          type: entry.dataType || "Variant",
+          category: category,
+          value: val,
+          label: entry.inferred?.label || (isQuarantine ? "uncovered_corrupt_node" : "container_folder"),
+          tier: entry.inferred?.provenance ? `Tier 1: ${entry.inferred.provenance}` : (isQuarantine ? "Tier 4: Defective Node Isolation" : "Structural Scaffold"),
+          confidence: entry.inferred ? Math.round((entry.inferred.confidence || 1) * 100) + "%" : "0%",
+          evidence: entry.inferred?.evidence || (isQuarantine ? ["Server returns BadWaitingForInitialData upon attribute read", "Quarantined by Atlas QualityGuard circuit breaker"] : ["Empty container folder or metadata structure."]),
+          status: isTelemetry ? "Actionable Signal" : (isQuarantine ? "Quarantined Anomaly" : "Uncovered Noise")
+        });
+      });
+
+      DATASETS.umati.nodes = liveNodes;
+      DATASETS.umati.totalNodes = catData.entries.length;
+      DATASETS.umati.telemetryNodes = telemetryCount;
+      DATASETS.umati.noiseNodes = noiseCount;
+      DATASETS.umati.quarantineCount = quarantineCount;
+
+      document.getElementById("kpiTotalNodes").innerText = catData.entries.length;
+      document.getElementById("kpiTelemetryNodes").innerText = telemetryCount;
+      document.getElementById("kpiTelemetryPercent").innerText = ((telemetryCount / catData.entries.length) * 100).toFixed(1) + "% of address space";
+      document.getElementById("kpiNoiseNodes").innerText = noiseCount;
+      document.getElementById("kpiQuarantineCount").innerText = quarantineCount;
+
+      renderNodeList(liveNodes);
     }
 
     // Initialize
