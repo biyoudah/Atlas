@@ -19,75 +19,53 @@
   },
   "refresh": "1s",
   "schemaVersion": 38,
-  "version": 3,
+  "version": 4,
+  "templating": {
+    "list": [
+      {
+        "name": "device",
+        "label": "CNC / Machine",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(opcua_feed_override, device)",
+        "query": {
+          "query": "label_values(opcua_feed_override, device)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all",
+          "selected": true
+        }
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
-      "type": "stat",
-      "title": "Machine State / Operating Mode (umati OPC 40501)",
-      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+      "type": "bargauge",
+      "title": "Fleet Feed Override Potentiometers (%)",
+      "description": "Visualisation industrielle claire des vitesses d'avance par machine et par canal",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "opcua_operating_mode{machine=\"umati_cell_01\"} or opcua_machine_state{machine=\"umati_cell_01\"} or (atlas_machine_connected{machine=\"umati_cell_01\"} == 1)",
-          "legendFormat": "{{node_id}}",
+          "expr": "opcua_feed_override{device=~\"$device\"}",
+          "legendFormat": "{{device}} ({{channel}})",
           "refId": "A"
         }
       ],
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*[/]([^/]+)/;i=([0-9]+).*",
-            "renamePattern": "$1"
-          }
-        }
-      ],
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": { "text": "AUTOMATIC / ACTIVE", "color": "green" },
-                "0": { "text": "STOPPED", "color": "yellow" }
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "id": 2,
-      "type": "gauge",
-      "title": "Feed Override Potentiometer (%)",
-      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "targets": [
-        {
-          "expr": "opcua_feed_override{machine=\"umati_cell_01\"}",
-          "legendFormat": "{{node_id}}",
-          "refId": "A"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*[/]([^/]+)/;i=([0-9]+).*",
-            "renamePattern": "$1 ($2)"
-          }
-        }
-      ],
-      "options": {
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "minVizWidth": 10,
+        "minVizHeight": 16,
+        "valueMode": "color"
       },
       "fieldConfig": {
         "defaults": {
@@ -98,22 +76,61 @@
             "mode": "absolute",
             "steps": [
               { "value": null, "color": "green" },
-              { "value": 105, "color": "yellow" },
-              { "value": 125, "color": "red" }
+              { "value": 100, "color": "#EAB839" },
+              { "value": 120, "color": "red" }
             ]
           }
         }
       }
     },
     {
-      "id": 3,
+      "id": 2,
       "type": "stat",
-      "title": "Active Monitored Items (WAN Subscription)",
-      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 5 },
+      "title": "Fleet Operational States (OPC 40501)",
+      "description": "État de fonctionnement temps réel par machine",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 9 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "atlas_collector_monitored_items_active{machine=\"umati_cell_01\"}",
+          "expr": "opcua_operating_mode{device=~\"$device\"}",
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "vertical",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": { "text": "AUTOMATIC", "color": "green" },
+                "0": { "text": "STOPPED", "color": "yellow" },
+                "2": { "text": "MANUAL", "color": "blue" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Active WAN Telemetry",
+      "description": "Variables industrielles souscrites en continu sur opcua.umati.app",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "atlas_collector_monitored_items_active",
+          "legendFormat": "Nodes",
           "refId": "A"
         }
       ],
@@ -132,12 +149,13 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "QualityGuard Quarantined Nodes (Bruit Filtré)",
-      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 5 },
+      "title": "QualityGuard Anomaly Isolation",
+      "description": "Nœuds corrompus ou sans données isolés automatiquement par Atlas",
+      "gridPos": { "x": 18, "y": 4, "w": 6, "h": 5 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "count(opcua_data_stale{machine=\"umati_cell_01\"} == 1) or vector(0)",
+          "expr": "count(opcua_data_stale == 1) or vector(0)",
           "refId": "A"
         }
       ],
@@ -154,13 +172,13 @@
               "options": {
                 "from": 1,
                 "to": 9999,
-                "result": { "text": "BRUIT ISOLÉ (OnlineAccess)", "color": "orange" }
+                "result": { "text": "ANOMALIES ISOLÉES", "color": "orange" }
               }
             },
             {
               "type": "value",
               "options": {
-                "0": { "text": "AUCUN DÉFAUT", "color": "green" }
+                "0": { "text": "FLUX 100% SAIN", "color": "green" }
               }
             }
           ]
@@ -170,23 +188,15 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Feed Override Potentiometer History (1s Interval)",
-      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 8 },
+      "title": "Feed Override Potentiometer History (1s Scrape)",
+      "description": "Historique précis d'avance. Tooltip ciblé sur la courbe survolée pour une lisibilité parfaite.",
+      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 10 },
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "targets": [
         {
-          "expr": "opcua_feed_override{machine=\"umati_cell_01\"}",
-          "legendFormat": "{{node_id}}",
+          "expr": "opcua_feed_override{device=~\"$device\"}",
+          "legendFormat": "{{device}} ({{channel}})",
           "refId": "A"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*[/]([^/]+)/;i=([0-9]+).*",
-            "renamePattern": "$1 (i=$2)"
-          }
         }
       ],
       "options": {
@@ -197,8 +207,7 @@
           "calcs": ["lastNotNull", "min", "max"]
         },
         "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "mode": "single"
         }
       },
       "fieldConfig": {
@@ -208,8 +217,8 @@
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
-            "showPoints": "auto",
-            "fillOpacity": 15
+            "showPoints": "never",
+            "fillOpacity": 8
           }
         }
       }

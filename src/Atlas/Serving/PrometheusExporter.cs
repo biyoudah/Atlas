@@ -45,6 +45,11 @@ public static class PrometheusExporter
             string safeId = entry.Id.Replace("\"", "\\\"");
             string idLabelSuffix = includeNodeIdLabel ? $",node_id=\"{safeId}\"" : string.Empty;
 
+            string? device = ExtractDevice(entry);
+            string deviceSuffix = !string.IsNullOrEmpty(device) ? $",device=\"{device}\"" : string.Empty;
+            string? channel = ExtractChannel(entry);
+            string channelSuffix = !string.IsNullOrEmpty(channel) ? $",channel=\"{channel}\"" : string.Empty;
+
             // State / Enum / String values -> State-Set metrics
             if (val is string strVal)
             {
@@ -55,7 +60,7 @@ public static class PrometheusExporter
                 }
 
                 string safeState = strVal.ToUpperInvariant().Replace("\"", "\\\"");
-                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{idLabelSuffix},state=\"{safeState}\"}} 1");
+                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{deviceSuffix}{channelSuffix}{idLabelSuffix},state=\"{safeState}\"}} 1");
                 continue;
             }
 
@@ -68,7 +73,7 @@ public static class PrometheusExporter
                     sb.AppendLine($"# TYPE {metricName} gauge");
                 }
 
-                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{idLabelSuffix}}} {(bVal ? "1" : "0")}");
+                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{deviceSuffix}{channelSuffix}{idLabelSuffix}}} {(bVal ? "1" : "0")}");
                 continue;
             }
 
@@ -86,7 +91,7 @@ public static class PrometheusExporter
                 }
 
                 string formattedVal = numVal.ToString("G", CultureInfo.InvariantCulture);
-                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{idLabelSuffix}}} {formattedVal}");
+                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{deviceSuffix}{channelSuffix}{idLabelSuffix}}} {formattedVal}");
             }
         }
 
@@ -279,5 +284,57 @@ public static class PrometheusExporter
                 result = 0;
                 return false;
         }
+    }
+
+    internal static string? ExtractDevice(CatalogEntry entry)
+    {
+        if (!string.IsNullOrEmpty(entry.Path))
+        {
+            var parts = entry.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                if (string.Equals(parts[i], "Machines", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(parts[i], "Devices", StringComparison.OrdinalIgnoreCase))
+                {
+                    return SanitizeLabelValue(parts[i + 1]);
+                }
+            }
+        }
+
+        if (!string.IsNullOrEmpty(entry.Id))
+        {
+            int nsuIdx = entry.Id.IndexOf("nsu=", StringComparison.OrdinalIgnoreCase);
+            int semiIdx = entry.Id.IndexOf(';');
+            if (nsuIdx >= 0 && semiIdx > nsuIdx)
+            {
+                string uri = entry.Id.Substring(nsuIdx + 4, semiIdx - (nsuIdx + 4)).TrimEnd('/');
+                int lastSlash = uri.LastIndexOf('/');
+                if (lastSlash >= 0 && lastSlash < uri.Length - 1)
+                {
+                    return SanitizeLabelValue(uri.Substring(lastSlash + 1));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    internal static string? ExtractChannel(CatalogEntry entry)
+    {
+        if (string.IsNullOrEmpty(entry.Path)) return null;
+        var parts = entry.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            if (part.StartsWith("Channel", StringComparison.OrdinalIgnoreCase))
+            {
+                return SanitizeLabelValue(part);
+            }
+        }
+        return null;
+    }
+
+    private static string SanitizeLabelValue(string val)
+    {
+        return val.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "").Replace("\r", "").Trim();
     }
 }
