@@ -9,6 +9,8 @@ internal static class Program
     {
         int port = 4840;
         int intervalMs = 200;
+        int seed = 42;
+        var scenario = SimulationScenario.NormalProduction;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -20,34 +22,48 @@ internal static class Program
             {
                 int.TryParse(args[++i], out intervalMs);
             }
+            else if (args[i] is "--scenario" && i + 1 < args.Length)
+            {
+                if (Enum.TryParse<SimulationScenario>(args[++i], ignoreCase: true, out var s))
+                {
+                    scenario = s;
+                }
+            }
+            else if (args[i] is "--seed" && i + 1 < args.Length)
+            {
+                int.TryParse(args[++i], out seed);
+            }
             else if (args[i] is "-h" or "--help")
             {
                 Console.WriteLine("""
                     Fake CNC OPC UA Server v1.0.0
-                    Simulates high-fidelity 5-axis CNC metrics (spindle speed, cycle time, part counters, axes motion).
+                    Deterministic Scenario Test Harness & Telemetry Simulator for CI.
 
                     USAGE:
-                      dotnet run --project tools/Opc.Ua.FakeCnc -- [options]
+                      dotnet run --project simulation/Atlas.FakeCnc -- [options]
 
                     OPTIONS:
-                      -p, --port <port>        OPC UA TCP port (default: 4840)
-                      -i, --interval <ms>      Physics simulation tick interval in ms (default: 200)
-                      -h, --help               Show help
+                      -p, --port <port>          OPC UA TCP port (default: 4840)
+                      -i, --interval <ms>        Simulation tick interval in ms (default: 200)
+                      --scenario <scenario>      Scenario: NormalProduction, CounterReset, QualityFault,
+                                                           ProductionDisruption, NetworkInterruption
+                      --seed <seed>              Deterministic RNG seed (default: 42)
+                      -h, --help                 Show help
                     """);
                 return 0;
             }
         }
 
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("""
+        Console.WriteLine($"""
             ========================================================================
-                      FAKE CNC OPC UA SERVER — 5-AXIS MACHINING CENTER             
+                      FAKE CNC OPC UA SERVER — SCENARIO HARNESS: {scenario}
             ========================================================================
             """);
         Console.ResetColor();
 
         ITelemetryContext telemetry = DefaultTelemetry.Create(_ => { });
-        var model = new CncSimulationModel();
+        var model = new CncSimulationModel(seed, scenario);
         var server = new FakeCncServer(telemetry, model, tickIntervalMs: intervalMs);
 
         Console.WriteLine($"Configuring server on port {port}...");

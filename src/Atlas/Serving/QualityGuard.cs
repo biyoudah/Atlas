@@ -217,7 +217,7 @@ public sealed class QualityGuard
         HasCounterBaseline = r.HasCounterBaseline
     };
 
-    private static bool TryConvertToDouble(object? val, out double result)
+    public static bool TryConvertToDouble(object? val, out double result)
     {
         switch (val)
         {

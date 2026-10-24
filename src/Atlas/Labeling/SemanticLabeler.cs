@@ -84,7 +84,38 @@ public static class SemanticLabeler
                 continue;
             }
 
-            // 1. User Mapping Pack (Always wins with 1.0 confidence)
+            string browseName = entry.BrowseName ?? string.Empty;
+
+            // ========================================================================
+            // Tier 1: Standard Companion Specifications (OPC 40501 / OPC 40001 / umati)
+            // ========================================================================
+            bool isStandardNamespace = Standard.MachineToolStandards.StandardNamespaces.Any(ns =>
+                entry.Id.Contains(ns, StringComparison.OrdinalIgnoreCase) ||
+                (entry.Path != null && entry.Path.Contains("MachineTool", StringComparison.OrdinalIgnoreCase)));
+
+            if (Standard.MachineToolStandards.StandardNodes.TryGetValue(browseName, out var stdDef))
+            {
+                if (isStandardNamespace || entry.Path.Contains("Production", StringComparison.OrdinalIgnoreCase) || entry.Path.Contains("Equipment", StringComparison.OrdinalIgnoreCase) || entry.Path.Contains("Monitoring", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrEmpty(stdDef.CanonicalUnit) && string.IsNullOrEmpty(entry.Unit))
+                    {
+                        entry.Unit = stdDef.CanonicalUnit;
+                    }
+
+                    entry.Inferred = new InferredSemantics(
+                        Label: stdDef.StandardLabel,
+                        Confidence: 1.0,
+                        Evidence: [$"OPC 40501 / OPC 40001 Standard Companion Spec match: '{browseName}'"],
+                        Provenance: SignalProvenance.StandardCompanionSpec);
+
+                    entry.Category = stdDef.Category;
+                    continue;
+                }
+            }
+
+            // ========================================================================
+            // Tier 2: Mapping Packs (Vendor Packs e.g. Siemens/Fanuc or Custom Rules)
+            // ========================================================================
             if (compiledRules != null)
             {
                 UserMappingRule? matchedRule = null;
@@ -104,23 +135,29 @@ public static class SemanticLabeler
                         entry.Unit = matchedRule.Unit;
                     }
 
+                    SignalProvenance packProvenance = mappingPack?.Name?.StartsWith("custom", StringComparison.OrdinalIgnoreCase) == true
+                        ? SignalProvenance.CustomRule
+                        : SignalProvenance.VendorMappingPack;
+
                     entry.Inferred = new InferredSemantics(
                         Label: matchedRule.Label,
                         Confidence: 1.0,
-                        Evidence: [$"User mapping pack '{mappingPack!.Name}': pattern '{matchedRule.Pattern}'"]);
+                        Evidence: [$"Mapping pack '{mappingPack!.Name}': pattern '{matchedRule.Pattern}'"],
+                        Provenance: packProvenance);
 
                     entry.Category = matchedRule.Category ?? DeduceCategory(entry, matchedRule.Label);
                     continue;
                 }
             }
 
-            // 2. Automated Multi-Factor Heuristic Inference
+            // ========================================================================
+            // Tier 3: Automated Multi-Factor Heuristic Inference
+            // ========================================================================
             string? candidateLabel = null;
             double confidence = 0.0;
             var evidence = new List<string>();
 
             // Factor A: Companion Spec Keyword Match
-            string browseName = entry.BrowseName ?? string.Empty;
             if (s_companionSpecKeywords.TryGetValue(browseName, out var specMatch))
             {
                 candidateLabel = specMatch.Label;
@@ -277,7 +314,8 @@ public static class SemanticLabeler
                 entry.Inferred = new InferredSemantics(
                     Label: candidateLabel,
                     Confidence: Math.Round(Math.Min(1.0, confidence), 2),
-                    Evidence: evidence);
+                    Evidence: evidence,
+                    Provenance: SignalProvenance.HeuristicInference);
             }
 
             entry.Category = DeduceCategory(entry, candidateLabel);

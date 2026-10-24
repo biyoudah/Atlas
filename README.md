@@ -9,7 +9,7 @@
 
 **Atlas** is an open-source edge telemetry engine for industrial OPC UA controllers (Siemens S7-1500/840D, Fanuc 30i/31i, Mitsubishi M800, open62541, and standard OPC UA servers). It decouples operational technology (OT) machine data from proprietary software barriers by providing automated address space discovery, complex type flattening, ANSI/MTConnect semantic classification, network micro-cut hysteresis, ISO 22400-2 OEE calculation, turnkey Grafana v10 dashboard generation, Prometheus metrics export, and native Model Context Protocol (MCP) endpoints for AI assistants.
 
-> **Project Status:** **Alpha / Active OT Prototype**. Currently verified against a high-fidelity 5-axis CNC simulation server (`Atlas.FakeCnc`) and standard reference servers (`open62541`) with 69 automated unit, integration, and schema validation tests. In-situ plant pilots should follow the deployment and network guidelines in [SECURITY.md](SECURITY.md).
+> **Project Status:** **Alpha / Active OT Prototype**. Currently verified against the official `umati` machine tool reference server (`ghcr.io/umati/sample-server`), standard reference servers (`open62541`, `Eclipse Milo`), and the scenario-driven test harness (`Atlas.FakeCnc`) with 82 automated unit, integration, and scenario validation tests. In-situ plant pilots should follow the deployment and network guidelines in [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -49,7 +49,7 @@
 ## 🚀 Quickstart
 
 ### Option A: Run with Docker Compose (Single Command Demo)
-Launch the entire stack (Simulated 5-axis CNC + Reference C Server + Atlas Engine + Prometheus + Grafana) with one command:
+Launch the entire industrial stack (umati Machine Tool Sample Server + open62541 C Reference + Atlas Engine + Prometheus + Grafana + Scenario Harness) with one command:
 
 ```bash
 docker compose up -d
@@ -57,8 +57,9 @@ docker compose up -d
 * **Atlas HTTP API:** [http://localhost:9090](http://localhost:9090) (`/metrics`, `/catalog`, `/health`, `/reconciliation`)
 * **Prometheus:** [http://localhost:9091](http://localhost:9091)
 * **Grafana:** [http://localhost:3000](http://localhost:3000) (User: `admin`, Password: `admin`)
-* **Simulated CNC Server:** `opc.tcp://localhost:62541/FakeCncServer`
+* **umati Machine Tool Server (OPC 40501):** `opc.tcp://localhost:4841`
 * **Reference open62541 C Server:** `opc.tcp://localhost:4840`
+* **Scenario Test Harness Server:** `opc.tcp://localhost:62541/FakeCncServer`
 
 ### Option B: Build & Run from Source (.NET 8 SDK)
 ```bash
@@ -244,6 +245,51 @@ atlas_machine_connected{machine="cnc_mill_01"} 1
 
 ---
 
+## 🏛️ 3-Tier Semantic Hierarchy & Provenance Model
+
+Atlas structures all industrial telemetry into a strict 3-tier precedence hierarchy with traceable provenance:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        3-TIER SEMANTIC HIERARCHY                       │
+├────────────────────────────────────────────────────────────────────────┤
+│ Tier 1: Standard Companion Specs (OPC 40501 MachineTool / OPC 40001)   │
+│         - Confidence: 1.0 | Provenance: StandardCompanionSpec          │
+│         - Native umati node interpretation without reverse engineering │
+├────────────────────────────────────────────────────────────────────────┤
+│ Tier 2: Vendor Mapping Packs (Siemens S7, Fanuc 31i, Mitsubishi M800)  │
+│         - Confidence: 1.0 (pack rule) | Provenance: VendorMappingPack  │
+│         - Resolves proprietary registers (DB10.Var_27 -> spindle_speed)│
+├────────────────────────────────────────────────────────────────────────┤
+│ Tier 3: Multi-Factor Heuristic Inference                               │
+│         - Confidence: 0.50 - 0.85 | Provenance: HeuristicInference     │
+│         - Combines engineering units, EURanges, and telemetry profiling│
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+Every collected point is stored as a **`CanonicalSignal`** preserving 18 fidelity fields: `NodeId`, `StableNodeId`, `RawValue`, `NumericValue`, `DataType`, `StatusCode`, `Quality` (Good/Uncertain/Bad), `SourceTimestampUtc`, `ServerTimestampUtc`, `ReceivedTimestampUtc`, `IsStale`, `SamplingIntervalMs`, `SemanticLabel`, `Unit`, `Provenance`, `Confidence`, `Category`, `RawState`, and `StandardizedState` (multi-state fidelity: `Active`, `Interrupted`, `FeedHold`, `Ready`, `Fault`, `Manual`).
+
+---
+
+## 🧪 Deterministic Scenario Test Harness (`Atlas.FakeCnc`)
+
+Rather than maintaining a generic 3D graphics simulator, `Atlas.FakeCnc` acts as a **deterministic, seedable scenario-driven test harness** for reproducible CI testing:
+
+```bash
+dotnet run --project simulation/Atlas.FakeCnc -- --scenario <ScenarioName> --seed 42
+```
+
+| Scenario Mode | Injected Behavior | Validated Invariant |
+|---|---|---|
+| `NormalProduction` | Steady cycle completion, 10,000 RPM, parts incrementing | Predictable KPIs and baseline performance |
+| `CounterReset` | Part counter drops from 150 to 0 at tick 5 (simulating shift reset) | QualityGuard absorbs rollover without negative rate spikes |
+| `QualityFault` | Sensor fails with `BadSensorFailure` and out-of-range thermal reading | Downstream hysteresis flags `Uncertain` $\rightarrow$ `Bad` |
+| `ProductionDisruption` | Tool breakage alarm trips feed hold and halts spindle | State machine transitions to `INTERRUPTED` / `FeedHold` |
+| `NetworkInterruption` | Stalls telemetry packets between tick 3 and 7 | Reconnection and staleness timers activate correctly |
+| `SchemaVariation` | Exposes non-standard namespaces and complex nested structures | Flattening and dynamic type decoders remain robust |
+
+---
+
 ## 📦 Community Mapping Packs & Schema Validation
 
 Atlas ships with built-in mapping packs for:
@@ -257,14 +303,14 @@ To author or validate a custom pack for your factory's PLC or CNC models, see th
 
 ## ⚠️ Known Limitations & Boundaries
 
-1. **Evaluation Scope:** All tests and benchmarks have been executed against simulated industrial servers (`Atlas.FakeCnc`) and reference C-stack servers (`open62541`). In-situ physical machine pilots are planned in subsequent roadmap phases.
+1. **Evaluation Scope:** All tests and benchmarks have been executed against the `umati` Machine Tool reference server, native `open62541`, `Eclipse Milo`, and the scenario-driven test harness (`Atlas.FakeCnc`). In-situ physical machine pilots are planned in subsequent roadmap phases.
 2. **Read-Only Telemetry Focus:** Atlas is optimized for data ingestion, discovery, and observability. It is **not** a deterministic soft-PLC or motion controller. While an audited write gateway exists for setpoints (e.g. override limits), physical safety interlocks must always remain on hardwired safety circuits or certified safety PLCs.
 3. **Endpoint Authentication:** Built-in HTTP and WebSocket endpoints are unauthenticated by design and bind to `localhost` by default. Production deployments across network boundaries require a reverse proxy (e.g., NGINX, Envoy) with TLS and bearer tokens (see [SECURITY.md](SECURITY.md)).
 4. **Label Cardinality:** By default, metric names identify signals cleanly (`opcua_spindle_speed_rpm{machine="..."}`). Attaching raw full `node_id` strings to labels can cause series cardinality explosion in Prometheus across large plants; use `--low-cardinality` to omit them.
 
 ---
 
-## 🛡️ Automated Verification Suite (69 Tests)
+## 🛡️ Automated Verification Suite (82 Tests)
 
 | Test Fixture | Tests | Status | Domain Capabilities Verified |
 |---|---|---|---|
@@ -272,6 +318,10 @@ To author or validate a custom pack for your factory's PLC or CNC models, see th
 | `TypeDecoderTests` | 7 | **PASS** | `ExtensionObject` runtime decoding, struct field flattening |
 | `ProfilerTests` | 9 | **PASS** | Passive signal classification, correlation matrices |
 | `SemanticLabelerTests` | 7 | **PASS** | Multi-factor heuristic inference, mapping pack priority |
+| `MachineToolStandardTests` | 3 | **PASS** | OPC 40501 MachineTool, OPC 40001 Machinery, provenance tiers, multi-state fidelity |
+| `DeterministicScenarioTests` | 5 | **PASS** | Normal, CounterReset, QualityFault, Disruption, NetworkInterruption |
+| `CanonicalSignalModelTests` | 2 | **PASS** | Full fidelity metadata preservation (18 attributes), multiplexer caching |
+| `OeeEdgeCasesTests` | 3 | **PASS** | Work order transitions, scrap > total clamping, zero-divide protection |
 | `MappingPackSchemaTests` | 2 | **PASS** | Draft 2020-12 JSON Schema validation on all vendor packs |
 | `PrometheusAndDashboardTests` | 12 | **PASS** | Prometheus v0.0.4 exposition, state-sets, Grafana schema, low cardinality |
 | `QualityGuardTests` | 5 | **PASS** | Micro-cut hysteresis (Uncertain $\rightarrow$ Bad), PLC reset smoothing, staleness timeout |
@@ -280,7 +330,7 @@ To author or validate a custom pack for your factory's PLC or CNC models, see th
 | `OeeCalculatorTests` | 4 | **PASS** | ISO 22400-2 TRS calculation, OF transitions, zero-divide edge cases |
 | `CollectorDiagnosticsTests` | 2 | **PASS** | Gateway self-supervision, scrape latency, uptime gauge |
 | `AtlasMcpServerTests` | 6 | **PASS** | JSON-RPC 2.0 stdio protocol, tool manifest, address space search, write rejection |
-| **Total** | **69** | **100% PASS** | **End-to-End Suite Clean** |
+| **Total** | **82** | **100% PASS** | **End-to-End Suite Clean** |
 
 ---
 
