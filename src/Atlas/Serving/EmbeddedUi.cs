@@ -57,6 +57,7 @@ public static class EmbeddedUi
                   <h1>ATLAS — Industrial OPC UA Telemetry Cockpit</h1>
                   <p>Serving Prometheus metrics at <a style="color:#06b6d4;" href="/metrics">/metrics</a></p>
                   <p>Catalog at <a style="color:#06b6d4;" href="/catalog">/catalog</a></p>
+                  <p>Live API at <a style="color:#06b6d4;" href="/api/live">/api/live</a></p>
                   <p>Health at <a style="color:#06b6d4;" href="/health">/health</a></p>
                 </body>
                 </html>

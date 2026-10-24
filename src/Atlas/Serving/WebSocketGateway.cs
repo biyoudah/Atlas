@@ -100,144 +100,144 @@ public sealed class WebSocketGateway : IAsyncDisposable
             switch (action)
             {
                 case "subscribe":
-                {
-                    var nodesToSubscribe = new List<string>();
-                    if (root.TryGetProperty("nodes", out var nodesProp) && nodesProp.ValueKind == JsonValueKind.Array)
                     {
-                        foreach (var el in nodesProp.EnumerateArray())
+                        var nodesToSubscribe = new List<string>();
+                        if (root.TryGetProperty("nodes", out var nodesProp) && nodesProp.ValueKind == JsonValueKind.Array)
                         {
-                            string? node = el.GetString();
-                            if (!string.IsNullOrEmpty(node))
+                            foreach (var el in nodesProp.EnumerateArray())
                             {
-                                nodesToSubscribe.Add(node);
-                                session.SubscribedNodes.Add(node);
+                                string? node = el.GetString();
+                                if (!string.IsNullOrEmpty(node))
+                                {
+                                    nodesToSubscribe.Add(node);
+                                    session.SubscribedNodes.Add(node);
+                                }
                             }
                         }
-                    }
 
-                    _multiplexer.SubscribeClient(session.ClientId, nodesToSubscribe);
+                        _multiplexer.SubscribeClient(session.ClientId, nodesToSubscribe);
 
-                    // Send immediate acknowledgment
-                    await SendJsonAsync(session, new
-                    {
-                        @event = "subscribed",
-                        count = nodesToSubscribe.Count,
-                        nodes = nodesToSubscribe
-                    }, ct).ConfigureAwait(false);
-
-                    // Immediately stream current cached values for newly subscribed nodes
-                    var snapshot = _multiplexer.GetSnapshot();
-                    foreach (string node in nodesToSubscribe)
-                    {
-                        if (snapshot.TryGetValue(node, out var snap) && snap.Value != null)
+                        // Send immediate acknowledgment
+                        await SendJsonAsync(session, new
                         {
-                            await SendValueUpdateAsync(session, snap.Entry, snap.Value, DateTime.UtcNow, ct).ConfigureAwait(false);
+                            @event = "subscribed",
+                            count = nodesToSubscribe.Count,
+                            nodes = nodesToSubscribe
+                        }, ct).ConfigureAwait(false);
+
+                        // Immediately stream current cached values for newly subscribed nodes
+                        var snapshot = _multiplexer.GetSnapshot();
+                        foreach (string node in nodesToSubscribe)
+                        {
+                            if (snapshot.TryGetValue(node, out var snap) && snap.Value != null)
+                            {
+                                await SendValueUpdateAsync(session, snap.Entry, snap.Value, DateTime.UtcNow, ct).ConfigureAwait(false);
+                            }
                         }
+                        break;
                     }
-                    break;
-                }
 
                 case "unsubscribe":
-                {
-                    var nodesToUnsub = new List<string>();
-                    if (root.TryGetProperty("nodes", out var nodesProp) && nodesProp.ValueKind == JsonValueKind.Array)
                     {
-                        foreach (var el in nodesProp.EnumerateArray())
+                        var nodesToUnsub = new List<string>();
+                        if (root.TryGetProperty("nodes", out var nodesProp) && nodesProp.ValueKind == JsonValueKind.Array)
                         {
-                            string? node = el.GetString();
-                            if (!string.IsNullOrEmpty(node))
+                            foreach (var el in nodesProp.EnumerateArray())
                             {
-                                nodesToUnsub.Add(node);
-                                session.SubscribedNodes.Remove(node);
+                                string? node = el.GetString();
+                                if (!string.IsNullOrEmpty(node))
+                                {
+                                    nodesToUnsub.Add(node);
+                                    session.SubscribedNodes.Remove(node);
+                                }
                             }
-                        }
-                        _multiplexer.UnsubscribeClient(session.ClientId, nodesToUnsub);
-                    }
-                    else
-                    {
-                        // Unsubscribe all
-                        session.SubscribedNodes.Clear();
-                        _multiplexer.UnsubscribeClient(session.ClientId);
-                    }
-
-                    await SendJsonAsync(session, new { @event = "unsubscribed", count = nodesToUnsub.Count }, ct).ConfigureAwait(false);
-                    break;
-                }
-
-                case "read":
-                {
-                    if (root.TryGetProperty("node", out var nodeProp) && nodeProp.GetString() is string targetNode)
-                    {
-                        var snapshot = _multiplexer.GetSnapshot();
-                        if (snapshot.TryGetValue(targetNode, out var snap))
-                        {
-                            await SendValueUpdateAsync(session, snap.Entry, snap.Value, DateTime.UtcNow, ct).ConfigureAwait(false);
+                            _multiplexer.UnsubscribeClient(session.ClientId, nodesToUnsub);
                         }
                         else
                         {
-                            await SendJsonAsync(session, new { @event = "error", message = $"Node '{targetNode}' not found in catalog." }, ct).ConfigureAwait(false);
+                            // Unsubscribe all
+                            session.SubscribedNodes.Clear();
+                            _multiplexer.UnsubscribeClient(session.ClientId);
                         }
+
+                        await SendJsonAsync(session, new { @event = "unsubscribed", count = nodesToUnsub.Count }, ct).ConfigureAwait(false);
+                        break;
                     }
-                    break;
-                }
+
+                case "read":
+                    {
+                        if (root.TryGetProperty("node", out var nodeProp) && nodeProp.GetString() is string targetNode)
+                        {
+                            var snapshot = _multiplexer.GetSnapshot();
+                            if (snapshot.TryGetValue(targetNode, out var snap))
+                            {
+                                await SendValueUpdateAsync(session, snap.Entry, snap.Value, DateTime.UtcNow, ct).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await SendJsonAsync(session, new { @event = "error", message = $"Node '{targetNode}' not found in catalog." }, ct).ConfigureAwait(false);
+                            }
+                        }
+                        break;
+                    }
 
                 case "write":
-                {
-                    string? targetNode = root.TryGetProperty("node", out var nProp) ? nProp.GetString() : (root.TryGetProperty("nodeId", out var nidProp) ? nidProp.GetString() : null);
-                    if (!string.IsNullOrEmpty(targetNode) && root.TryGetProperty("value", out var valProp))
                     {
-                        object? val = valProp.ValueKind switch
+                        string? targetNode = root.TryGetProperty("node", out var nProp) ? nProp.GetString() : (root.TryGetProperty("nodeId", out var nidProp) ? nidProp.GetString() : null);
+                        if (!string.IsNullOrEmpty(targetNode) && root.TryGetProperty("value", out var valProp))
                         {
-                            JsonValueKind.Number when valProp.TryGetInt64(out long l) => l,
-                            JsonValueKind.Number when valProp.TryGetDouble(out double d) => d,
-                            JsonValueKind.True => true,
-                            JsonValueKind.False => false,
-                            JsonValueKind.String => valProp.GetString(),
-                            _ => valProp.ToString()
-                        };
-
-                        if (val != null)
-                        {
-                            var (success, msg) = await _multiplexer.WriteValueAsync(session.ClientId, targetNode, val, ct).ConfigureAwait(false);
-                            await SendJsonAsync(session, new
+                            object? val = valProp.ValueKind switch
                             {
-                                @event = "write_result",
-                                node = targetNode,
-                                success,
-                                message = msg
-                            }, ct).ConfigureAwait(false);
+                                JsonValueKind.Number when valProp.TryGetInt64(out long l) => l,
+                                JsonValueKind.Number when valProp.TryGetDouble(out double d) => d,
+                                JsonValueKind.True => true,
+                                JsonValueKind.False => false,
+                                JsonValueKind.String => valProp.GetString(),
+                                _ => valProp.ToString()
+                            };
+
+                            if (val != null)
+                            {
+                                var (success, msg) = await _multiplexer.WriteValueAsync(session.ClientId, targetNode, val, ct).ConfigureAwait(false);
+                                await SendJsonAsync(session, new
+                                {
+                                    @event = "write_result",
+                                    node = targetNode,
+                                    success,
+                                    message = msg
+                                }, ct).ConfigureAwait(false);
+                            }
                         }
+                        break;
                     }
-                    break;
-                }
 
                 case "catalog":
-                {
-                    var entries = _catalog.Entries.Select(e => new
                     {
-                        id = e.Id,
-                        path = e.Path,
-                        browseName = e.BrowseName,
-                        dataType = e.DataType,
-                        unit = e.Unit,
-                        range = e.Range,
-                        inferred = e.Inferred != null ? new
+                        var entries = _catalog.Entries.Select(e => new
                         {
-                            label = e.Inferred.Label,
-                            confidence = e.Inferred.Confidence,
-                            evidence = e.Inferred.Evidence
-                        } : null
-                    });
+                            id = e.Id,
+                            path = e.Path,
+                            browseName = e.BrowseName,
+                            dataType = e.DataType,
+                            unit = e.Unit,
+                            range = e.Range,
+                            inferred = e.Inferred != null ? new
+                            {
+                                label = e.Inferred.Label,
+                                confidence = e.Inferred.Confidence,
+                                evidence = e.Inferred.Evidence
+                            } : null
+                        });
 
-                    await SendJsonAsync(session, new
-                    {
-                        @event = "catalog",
-                        serverUri = _catalog.Metadata.ServerUri ?? _catalog.Metadata.EndpointUrl,
-                        count = _catalog.Entries.Count,
-                        entries
-                    }, ct).ConfigureAwait(false);
-                    break;
-                }
+                        await SendJsonAsync(session, new
+                        {
+                            @event = "catalog",
+                            serverUri = _catalog.Metadata.ServerUri ?? _catalog.Metadata.EndpointUrl,
+                            count = _catalog.Entries.Count,
+                            entries
+                        }, ct).ConfigureAwait(false);
+                        break;
+                    }
 
                 default:
                     await SendJsonAsync(session, new { @event = "error", message = $"Unknown action '{action}'" }, ct).ConfigureAwait(false);

@@ -203,21 +203,8 @@ public sealed class AtlasServer : IAsyncDisposable
                         }
                     }
 
-                    string dev = "Main";
-                    string chan = "";
-                    if (!string.IsNullOrEmpty(entry.Path))
-                    {
-                        var matchMachine = System.Text.RegularExpressions.Regex.Match(entry.Path, @"Machines/([^/]+)");
-                        if (matchMachine.Success)
-                        {
-                            dev = matchMachine.Groups[1].Value;
-                        }
-                        var matchChan = System.Text.RegularExpressions.Regex.Match(entry.Path, @"(Channel\s*\d+)");
-                        if (matchChan.Success)
-                        {
-                            chan = matchChan.Groups[1].Value;
-                        }
-                    }
+                    string dev = PrometheusExporter.ExtractDevice(entry) ?? "Main";
+                    string chan = PrometheusExporter.ExtractChannel(entry) ?? "";
 
                     list.Add(new
                     {
