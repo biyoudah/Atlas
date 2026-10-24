@@ -125,6 +125,17 @@ public static class AtlasClientHelper
 
             if (selected != null)
             {
+                if (Uri.TryCreate(endpointUrl, UriKind.Absolute, out var reqUri) &&
+                    Uri.TryCreate(selected.EndpointUrl, UriKind.Absolute, out var selUri))
+                {
+                    var endpointUriBuilder = new UriBuilder(selUri)
+                    {
+                        Host = reqUri.Host,
+                        Port = reqUri.Port
+                    };
+                    selected.EndpointUrl = endpointUriBuilder.Uri.ToString();
+                }
+
                 if (!string.IsNullOrEmpty(securityPolicyUri))
                 {
                     selected.SecurityPolicyUri = securityPolicyUri;
