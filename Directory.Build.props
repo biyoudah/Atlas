@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <LangVersion>preview</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Version>0.1.0</Version>
@@ -11,6 +11,6 @@
     <Product>Atlas OPC UA Telemetry &amp; Semantic Discovery Engine</Product>
     <Copyright>Copyright © 2026 Atlas Project Contributors</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/biyoudah/Atlas</RepositoryUrl>
+    <RepositoryUrl>https://github.com/atlas-industrial/atlas</RepositoryUrl>
   </PropertyGroup>
 </Project>

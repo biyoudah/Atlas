@@ -9,8 +9,8 @@
     <Description>Atlas — Industrial OPC UA Telemetry Adapter, Address Space Discovery &amp; Turnkey Visualization Engine.</Description>
     <PackageTags>opcua;industrial-iot;mtconnect;prometheus;grafana;mcp;iiot;plc;cnc</PackageTags>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/biyoudah/Atlas</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/biyoudah/Atlas</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/atlas-industrial/atlas</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/atlas-industrial/atlas</PackageProjectUrl>
     <RootNamespace>Atlas</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

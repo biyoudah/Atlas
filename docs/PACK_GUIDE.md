@@ -17,7 +17,7 @@ You can validate your pack locally using `dotnet test --filter MappingPackSchema
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/biyoudah/Atlas/main/schema/mapping-pack.schema.json",
+  "$schema": "https://raw.githubusercontent.com/atlas-industrial/atlas/main/schema/mapping-pack.schema.json",
   "name": "siemens-s7-1500-sinumerik",
   "vendor": "Siemens",
   "model": "S7-1500 / Sinumerik ONE / 840D sl",
@@ -105,7 +105,7 @@ Atlas standardizes on canonical operational labels:
 
 ## 5. Contributing to the Upstream Repository
 
-1. Fork `https://github.com/biyoudah/Atlas`.
+1. Fork `https://github.com/atlas-industrial/atlas`.
 2. Create a feature branch: `git checkout -b pack/<vendor>-<model>`.
 3. Add your pack to `src/Atlas/Packs/`.
 4. Ensure `dotnet test Atlas.slnx` passes all tests.

@@ -4,8 +4,8 @@
 
 ### One engine to discover, classify, and stream industrial machine address spaces — from raw PLC noise to production metrics in seconds.
 
-[![Release v0.1.0](https://img.shields.io/badge/release-v0.1.0-blue?style=flat-square&logo=github)](https://github.com/biyoudah/Atlas/releases)
-[![Build & Tests](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square&logo=dotnet)](https://github.com/biyoudah/Atlas/actions)
+[![Release v0.1.0](https://img.shields.io/badge/release-v0.1.0-blue?style=flat-square&logo=github)](https://github.com/atlas-industrial/atlas/releases)
+[![Build & Tests](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square&logo=dotnet)](https://github.com/atlas-industrial/atlas/actions)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![OPC UA Standard](https://img.shields.io/badge/OPC_UA-1.05_Compliant-005BA1?style=flat-square&logo=opcfoundation)](https://opcfoundation.org/)
 [![Companion Models](https://img.shields.io/badge/Companion_Models-OPC_40501_%2F_40001-orange?style=flat-square)](https://umati.org/)

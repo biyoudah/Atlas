@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/biyoudah/Atlas/main/schema/mapping-pack.schema.json",
+  "$id": "https://raw.githubusercontent.com/atlas-industrial/atlas/main/schema/mapping-pack.schema.json",
   "title": "Atlas User Mapping Pack",
   "description": "Validation schema for Atlas community and vendor mapping packs.",
   "type": "object",

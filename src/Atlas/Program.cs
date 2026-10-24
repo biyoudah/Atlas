@@ -51,7 +51,7 @@ public static class Program
     private static void PrintUsage()
     {
         Console.WriteLine("""
-            Atlas — OPC UA Discovery & Catalog Generator Engine v1.1.0
+            Atlas — Industrial OPC UA Telemetry Adapter & Semantic Discovery Engine v0.1.0
 
             USAGE:
               atlas <command> [options]
