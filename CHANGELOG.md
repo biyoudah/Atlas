@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Atlas Interactive Visual Cockpit (`atlas ui` & `/ui`):**
   - Embedded zero-dependency modern dark-mode industrial cockpit served natively at `http://localhost:9090/`.
   - Interactive OPC UA Server URL input with real-time address space discovery and visualization.
-  - One-click reference presets for public standard testbenches: umati (VDW MachineTool), Eclipse Milo, Sterfive, and Rotarex ManuMetrics.
+  - One-click reference presets for public standard testbenches: umati (VDW MachineTool), Eclipse Milo, Sterfive, and generic Siemens S7 testbed.
   - **"Uncovered Nodes Radar"**: Visual breakdown demonstrating the 95% noise vs 5% actionable telemetry reality of raw OPC UA.
   - Interactive tree browser with live attribute inspector, MTConnect category tags, and 4-tier semantic inference evidence.
   - Live 1-second interval telemetry oscilloscope and animated feed override potentiometer gauges.

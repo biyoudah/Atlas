@@ -12,19 +12,21 @@
 [![Metrics](https://img.shields.io/badge/Metrics-OpenMetrics_%2F_Grafana-E6522C?style=flat-square&logo=prometheus)](https://prometheus.io/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-yellow?style=flat-square)](LICENSE)
 
-**[Interactive Cockpit](#-interactive-visual-cockpit)** · **[Quick Start](#-quick-start)** · **[The 95% Noise Problem](#-the-industrial-problem-why-raw-opc-ua-is-noise)** · **[How Atlas Works](#-how-atlas-works)** · **[Architecture](#-architecture--data-flow)** · **[Comparison](#-competitive-matrix)** · **[AI Agent MCP](#-ai-agent-integration-mcp)** · **[Releases](https://github.com/biyoudah/Atlas/releases)**
+**[Interactive Cockpit](#-interactive-visual-cockpit)** · **[Quick Start](#-quick-start)** · **[The 95% Noise Problem](#-the-industrial-problem-why-raw-opc-ua-is-noise)** · **[How Atlas Works](#-how-atlas-works)** · **[Architecture](#-architecture--data-flow)** · **[Comparison](#-competitive-matrix)** · **[AI Agent MCP](#-ai-agent-integration-mcp)** · **[Configuration & Troubleshooting](#-troubleshooting--failure-modes)**
 
-<code>dotnet run --project src/Atlas -- ui</code>
+```bash
+dotnet run --project src/Atlas -- ui
+```
 
 </div>
 
 > [!IMPORTANT]
-> **Production-Tested Against Live International Standard Endpoints:**
+> **Production-Tested Against Live Industrial Reference Endpoints:**
 > Atlas is validated against real-world open-source reference servers without synthetic shortcuts:
 > - **VDW umati International MachineTool Testbench** (`opc.tcp://opcua.umati.app:4840`, OPC 40501 / 40001) in Germany.
 > - **Eclipse Milo CTT Reference Server** (`opc.tcp://milo.digitalpetri.com:62541/milo`).
 > - **Sterfive Multi-Namespace IoT Server** (`opc.tcp://opcuademo.sterfive.com:26543`).
-> - **Siemens S7-1500 / Rotarex ManuMetrics** production batch reconciliation pilots.
+> - **Industrial S7-1500 Controller & open62541 reference testbeds**.
 
 ---
 
@@ -63,6 +65,8 @@ If an engineer simply maps raw nodes into a database:
 - **4-Tier Semantic Inference:** Automatically infers signal meaning (e.g. `feed_override`, `operating_mode`, `parts_produced_total`) using standard companion specifications (OPC 40501 MachineTool), vendor packs (Siemens, Fanuc, Mitsubishi), and heuristic confidence scoring.
 - **QualityGuard Circuit Breaker:** Detects stale, disconnected, or defective nodes (such as `OnlineAccess`) and quarantines them instantly, preventing corrupt data from poisoning downstream time-series.
 - **Turnkey OpenMetrics & Grafana:** Native Prometheus HTTP endpoint (`/metrics`) with automatic device/channel label injection and auto-provisioned Grafana v11 dashboards.
+- **Live HTTP & WebSocket Streaming:** Serves `/api/live` snapshots and `/ws` multiplexed subscription streams for modern web dashboards.
+- **On-Demand Address Space Scan API:** Crawl any reachable `opc.tcp://` endpoint dynamically on demand via `GET /api/scan?url=...&depth=6`.
 - **Native AI Agent MCP Server:** Exposes read-only inspection tools over Model Context Protocol (stdio) for Claude Code, Cursor, Codex, and Gemini CLI.
 
 ---
@@ -94,18 +98,20 @@ Or open `docs/index.html` directly in your browser.
 │  │   │   │       ├── 🟢 FeedOverride (26.9%)    │  Tier: Tier 1 StandardCompanionSpec (OPC 40501)       │
 │  │   │   │       └── 🟢 OperatingMode (AUTO)    │  Evidence: EURange 0..150%, Path matches MachineTool  │
 │  │   │   ├── FullMachineTool (67.5%)            ├───────────────────────────────────────────────────────┤
-│  │   │   └── Hexagon PMM Gold (100.0%)          │  LIVE OSCILLOSCOPE (1s Interval)                      │
+│  │   │   └── Hexagon PMM Gold (100.0%)          │  LIVE OSCILLOSCOPE (1s Interval)   [ ◀ 1–4 / 30 ▶ ]   │
 │  │   └── DeviceTopology                         │  [~~~~~~~~~~~~~~~~~~~~/\~~~~~~~~~~~~~~~~~~~~~~~~~~~~] │
 │  │       └── 🔴 OnlineAccess (Quarantined)      │  BasicMachineTool: 26.9%  ·  FullMachineTool: 67.5%   │
 └─────────────────────────────────────────────────┴───────────────────────────────────────────────────────┘
 ```
 
 ### Features of the Cockpit:
-- **One-Click Target Switching:** Test against live public servers (umati, Milo, Sterfive) or your local PLC.
+- **Dynamic Endpoint Crawling:** Type any `opc.tcp://` endpoint URL and click `ANALYZE ADDRESS SPACE` to discover nodes in real time.
+- **Reference Target Presets:** Test against validated public reference servers (umati, Milo, Sterfive, Siemens S7-1500) with instant fallback.
 - **Uncovered Nodes Radar:** See exactly what percentage of the address space is actionable vs noise.
 - **Interactive Tree Browser:** Click any node to inspect data types, live values, and semantic inference evidence.
-- **Live 1-Second Oscilloscope:** Real-time waveform canvas tracking feed overrides, speeds, and states.
-- **Direct Downstream Integration:** Instant links to `/metrics` (Prometheus), `/catalog` (JSON), and Grafana.
+- **Paginated Fleet Gauges:** Seamlessly browse all 30 actionable signals without cluttering the screen (`◀ 1–4 / 30 ▶`).
+- **Live 1-Second Oscilloscope:** Real-time waveform canvas streaming feed overrides, speeds, and states directly from `/api/live`.
+- **Direct Downstream Integration:** Instant links to `/metrics` (Prometheus), `/catalog` (JSON), `/api/live` (JSON), and Grafana.
 
 ---
 
@@ -116,7 +122,7 @@ flowchart TD
     subgraph OT["Industrial Shop Floor (OT Layer)"]
         CNC1["umati MachineTool<br/>(OPC 40501 / 40001)"]
         CNC2["Siemens S7-1500 / 840D<br/>(Proprietary DBs)"]
-        CNC3["Fanuc / Mitsubishi<br/>(CNC Guides)"]
+        CNC3["Fanuc / Mitsubishi<br/>(Industrial Controllers)"]
     end
 
     subgraph Atlas["Atlas Telemetry & Semantic Engine (:9090)"]
@@ -125,6 +131,7 @@ flowchart TD
         Quality["QualityGuard<br/>(Hysteresis & Circuit Breaker)"]
         Exporter["PrometheusExporter<br/>(Device & Channel Labeling)"]
         WebUI["Embedded Web Cockpit<br/>(Interactive Visual Explorer)"]
+        LiveAPI["/api/live & /api/scan<br/>(REST & WebSocket Gateway)"]
     end
 
     subgraph IT["Enterprise & Observability (IT Layer)"]
@@ -142,6 +149,7 @@ flowchart TD
     Classifier --> Quality
     Quality -->|Prunes 95% Noise| Exporter
     Quality -->|Quarantines Bad Nodes| WebUI
+    Quality -->|Live State Updates| LiveAPI
 
     Exporter -->|Scrape 1s (2ms latency)| Prom
     Prom --> Graf
@@ -162,6 +170,7 @@ flowchart TD
 | **Prometheus Exporter** | ❌ None | ⚠️ Requires add-on | ⚠️ Raw numeric dump | **✅ Native OpenMetrics + Labels** |
 | **Turnkey Grafana Dashboard** | ❌ None | ❌ Manual build | ❌ Manual build | **✅ Hot-Reloadable Provisions** |
 | **Interactive Web UI** | ❌ Desktop only | ⚠️ Heavy Web Admin | ❌ None | **✅ Zero-Dependency Embedded Cockpit** |
+| **Live REST / WebSocket API** | ❌ None | ⚠️ Proprietary SDK | ❌ None | **✅ `/api/live` & `/ws` Out of Box** |
 | **AI Agent MCP Integration** | ❌ None | ❌ None | ❌ None | **✅ Native Model Context Protocol** |
 | **Shift Counter Reset Handling** | ❌ None | ❌ None | ❌ Negative rate spikes | **✅ Accumulator Reconciliation** |
 | **Footprint & Licensing** | Proprietary GUI | Commercial (\$\$\$\$) | Go Daemon | **Open-Source Apache-2.0 (.NET 8)** |
@@ -169,6 +178,10 @@ flowchart TD
 ---
 
 ## 🚀 Quick Start
+
+### Prerequisites
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or higher.
+- (Optional) [Docker & Docker Compose](https://www.docker.com/) for the full Prometheus + Grafana stack.
 
 ### 1. Launch Visual Cockpit (Browser)
 ```bash
@@ -193,10 +206,13 @@ dotnet run --project src/Atlas -- serve opc.tcp://opcua.umati.app:4840 --catalog
 
 Access endpoints:
 - **Interactive Web Cockpit:** [http://localhost:9090/](http://localhost:9090/)
+- **Live Telemetry Snapshot:** [http://localhost:9090/api/live](http://localhost:9090/api/live)
+- **On-Demand Crawl API:** [http://localhost:9090/api/scan?url=opc.tcp://opcua.umati.app:4840](http://localhost:9090/api/scan?url=opc.tcp://opcua.umati.app:4840)
 - **Prometheus Metrics:** [http://localhost:9090/metrics](http://localhost:9090/metrics)
 - **JSON Address Space Catalog:** [http://localhost:9090/catalog](http://localhost:9090/catalog)
 - **Health & Diagnostics:** [http://localhost:9090/health](http://localhost:9090/health)
 - **MES / ISO 22400 OEE:** [http://localhost:9090/reconciliation](http://localhost:9090/reconciliation)
+- **Multiplexed WebSocket Stream:** `ws://localhost:9090/ws`
 
 ### 4. Run with Docker Compose
 To launch the full turnkey stack (Atlas + umati Reference Server + Prometheus v3 + Grafana v11):
@@ -211,8 +227,7 @@ Open Grafana at [http://localhost:3000](http://localhost:3000) (anonymous Admin 
 
 Atlas exposes a native **Model Context Protocol (MCP)** server over `stdio` so AI coding agents (Claude Code, Cursor, Codex, Gemini CLI) can safely query industrial telemetry without write-risk:
 
-```bash
-# In your agent's mcp.json:
+```json
 {
   "mcpServers": {
     "atlas": {
@@ -241,12 +256,12 @@ COMMANDS:
   crawl <endpoint-url>              Crawl address space and generate catalog
   diff <base.json> <target.json>    Compare two catalogs to detect hidden tags / elevations
   diff-live <endpoint-url>          Compare anonymous vs authenticated view on live PLC
-  dashboard <catalog.json>          Generate turnkey Grafana v10 JSON dashboard
+  dashboard <catalog.json>          Generate turnkey Grafana v10/v11 JSON dashboard
   serve <endpoint-url>              Serve Prometheus metrics (/metrics), Web UI (/) & WebSocket gateway (/ws)
   mcp                               Run native Model Context Protocol (MCP) server over stdio
 
 OPTIONS:
-  -d, --max-depth <depth>           Maximum browse recursion depth (default: 6 for WAN, 50 for local)
+  -d, --max-depth <depth>           Maximum browse recursion depth (default: 6 for WAN, 30 for local)
   -b, --batch-size <size>           Batch size for attribute reads (default: 200)
   --port <port>                     HTTP serving port (default: 9090)
   --catalog <file.json>             Load pre-crawled catalog for instant startup
@@ -257,18 +272,31 @@ OPTIONS:
 
 ---
 
+## 🔧 Troubleshooting & Failure Modes
+
+| Symptom / Error | Root Cause | Solution |
+| :--- | :--- | :--- |
+| `BadCertificateUntrusted` | Target PLC uses self-signed or internal PKI certificate. | Atlas enables `autoAcceptUntrustedCertificates: true` by default in CLI/development. In production, place trusted CA certificates in `%USERPROFILE%/.opcfoundation/pki/trusted`. |
+| `BadTimeout / Connect Failure` | Network latency, firewall blocking port 4840, or high recursion depth. | Use `--max-depth 6` for WAN endpoints like umati.app. Check port connectivity with `Test-NetConnection -Port 4840 <host>`. |
+| `Port 9090 Already in Use` | Another service or Atlas background daemon is listening on port 9090. | Specify a custom port via `--port 9095`, or terminate the lingering process (`Stop-Process -Id <PID>`). |
+| `400 Bad Request on /api/scan` | Invalid endpoint URL format. | Ensure the URL starts with `opc.tcp://` (e.g. `opc.tcp://127.0.0.1:4840`). HTTP/HTTPS schemes are rejected. |
+| `Stale Quality / BadWaitingForData` | PLC node has uninitialized memory or sensor micro-cut. | QualityGuard automatically flags the signal as `Uncertain` or `Bad` without dropping the scrape. Check `/health` to see quarantined anomalies. |
+
+---
+
 ## 🧪 Automated Testing
 
-Atlas includes an 82-test automated verification suite covering:
-- OPC UA address-space tree traversal and batch decoding.
-- MTConnect and OPC 40501 semantic classification.
+Atlas includes an automated test suite with **92 tests** (100% pass rate) covering:
+- HTTP server routing, pre-flight CORS, `/api/live` snapshots, `/api/scan` dynamic crawls, and HEAD handling.
+- OPC UA address-space tree traversal, continuation points, and batch decoding.
+- MTConnect and OPC 40501 MachineTool semantic classification.
 - QualityGuard hysteresis, micro-cut resilience, and counter reconciliations.
 - Prometheus v3 OpenMetrics serialization and newline formatting.
 - Grafana dashboard generation and device label transformations.
 
 ```bash
 dotnet test Atlas.slnx
-# Réussi! - échec : 0, réussite : 82, durée : 4 s
+# Réussi!  - échec : 0, réussite : 92, durée : 4 s
 ```
 
 ---

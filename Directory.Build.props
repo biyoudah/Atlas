@@ -6,10 +6,10 @@
     <Version>0.1.0</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <FileVersion>0.1.0.0</FileVersion>
-    <Authors>Ayoub Ouadah and Atlas Contributors</Authors>
-    <Company>Atlas Industrial Systems</Company>
+    <Authors>Atlas Project Contributors</Authors>
+    <Company>Atlas Open Source Project</Company>
     <Product>Atlas OPC UA Telemetry &amp; Semantic Discovery Engine</Product>
-    <Copyright>Copyright © 2026 Ayoub Ouadah and Contributors</Copyright>
+    <Copyright>Copyright © 2026 Atlas Project Contributors</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/biyoudah/Atlas</RepositoryUrl>
   </PropertyGroup>

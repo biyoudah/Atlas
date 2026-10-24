@@ -2,8 +2,13 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Atlas.Client;
+using Atlas.Crawler;
 using Atlas.Exporters;
+using Atlas.Labeling;
 using Atlas.Models;
+using Opc.Ua;
+using Opc.Ua.Client;
 
 namespace Atlas.Serving;
 
@@ -13,7 +18,10 @@ namespace Atlas.Serving;
 /// - Prometheus metrics at /metrics
 /// - Machine catalog at /catalog
 /// - Health probe at /health
+/// - Live values snapshot at /api/live
+/// - Address-space crawl/scan at /api/scan
 /// - Real-time WebSocket multiplexed streaming at /ws
+/// - Interactive Cockpit UI at / or /ui
 /// </summary>
 public sealed class AtlasServer : IAsyncDisposable
 {
@@ -111,6 +119,17 @@ public sealed class AtlasServer : IAsyncDisposable
 
         try
         {
+            // Pre-flight CORS support
+            if (string.Equals(context.Request.HttpMethod, "OPTIONS", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, HEAD";
+                context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Accept, Authorization";
+                context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+                context.Response.Close();
+                return;
+            }
+
             if (path == "/ws")
             {
                 if (context.Request.IsWebSocketRequest)
@@ -121,10 +140,8 @@ public sealed class AtlasServer : IAsyncDisposable
                     return;
                 }
 
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 byte[] err = Encoding.UTF8.GetBytes("WebSocket upgrade required.");
-                await context.Response.OutputStream.WriteAsync(err, ct).ConfigureAwait(false);
-                context.Response.Close();
+                await SendResponseAsync(context, err, "text/plain; charset=utf-8", HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -142,11 +159,7 @@ public sealed class AtlasServer : IAsyncDisposable
                     includeNodeIdLabel: IncludeNodeIdInMetrics);
                 byte[] bytes = Encoding.UTF8.GetBytes(metrics);
 
-                context.Response.ContentType = "text/plain; version=0.0.4; charset=utf-8";
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                context.Response.ContentLength64 = bytes.Length;
-                await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
-                context.Response.Close();
+                await SendResponseAsync(context, bytes, "text/plain; version=0.0.4; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -155,12 +168,173 @@ public sealed class AtlasServer : IAsyncDisposable
                 string json = JsonCatalogExporter.ToJson(_catalog);
                 byte[] bytes = Encoding.UTF8.GetBytes(json);
 
-                context.Response.ContentType = "application/json; charset=utf-8";
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                context.Response.ContentLength64 = bytes.Length;
-                await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
-                context.Response.Close();
+                await SendResponseAsync(context, bytes, "application/json; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
                 return;
+            }
+
+            if (path == "/api/live")
+            {
+                var snapshot = _multiplexer.GetSnapshot();
+                var canonicals = _multiplexer.GetCanonicalSignals();
+                var list = new List<object>();
+
+                foreach (var entry in _catalog.Entries)
+                {
+                    object? val = null;
+                    double? numVal = null;
+                    string quality = "Good";
+                    string? ts = null;
+                    bool isStale = false;
+
+                    if (canonicals.TryGetValue(entry.Id, out var sig))
+                    {
+                        val = sig.RawValue;
+                        numVal = sig.NumericValue;
+                        quality = sig.Quality.ToString();
+                        ts = sig.SourceTimestampUtc.ToString("o");
+                        isStale = sig.IsStale;
+                    }
+                    else if (snapshot.TryGetValue(entry.Id, out var snap))
+                    {
+                        val = snap.Value;
+                        if (QualityGuard.TryConvertToDouble(snap.Value, out double d))
+                        {
+                            numVal = d;
+                        }
+                    }
+
+                    string dev = "Main";
+                    string chan = "";
+                    if (!string.IsNullOrEmpty(entry.Path))
+                    {
+                        var matchMachine = System.Text.RegularExpressions.Regex.Match(entry.Path, @"Machines/([^/]+)");
+                        if (matchMachine.Success)
+                        {
+                            dev = matchMachine.Groups[1].Value;
+                        }
+                        var matchChan = System.Text.RegularExpressions.Regex.Match(entry.Path, @"(Channel\s*\d+)");
+                        if (matchChan.Success)
+                        {
+                            chan = matchChan.Groups[1].Value;
+                        }
+                    }
+
+                    list.Add(new
+                    {
+                        id = entry.Id,
+                        browseName = entry.BrowseName,
+                        displayName = entry.DisplayName,
+                        path = entry.Path,
+                        device = dev,
+                        channel = chan,
+                        label = entry.Inferred?.Label,
+                        category = entry.Category,
+                        dataType = entry.DataType,
+                        unit = entry.Unit,
+                        value = val,
+                        numericValue = numVal,
+                        quality,
+                        isStale,
+                        timestamp = ts ?? DateTime.UtcNow.ToString("o")
+                    });
+                }
+
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(list, new JsonSerializerOptions { WriteIndented = true });
+                await SendResponseAsync(context, bytes, "application/json; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
+                return;
+            }
+
+            if (path == "/api/scan")
+            {
+                string? url = context.Request.QueryString["url"];
+                int depth = 6;
+                if (int.TryParse(context.Request.QueryString["depth"], out int d) && d is >= 1 and <= 30)
+                {
+                    depth = d;
+                }
+
+                if (string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase) && context.Request.HasEntityBody)
+                {
+                    try
+                    {
+                        using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                        string body = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+                        if (!string.IsNullOrWhiteSpace(body))
+                        {
+                            using var doc = JsonDocument.Parse(body);
+                            if (doc.RootElement.TryGetProperty("url", out var urlProp))
+                            {
+                                url = urlProp.GetString();
+                            }
+                            if (doc.RootElement.TryGetProperty("depth", out var depthProp) && depthProp.TryGetInt32(out int depthVal) && depthVal is >= 1 and <= 30)
+                            {
+                                depth = depthVal;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // If empty or identical to currently served catalog endpoint, return current catalog
+                if (string.IsNullOrWhiteSpace(url) ||
+                    string.Equals(url.Trim(), _catalog.Metadata.EndpointUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    string json = JsonCatalogExporter.ToJson(_catalog);
+                    byte[] bytes = Encoding.UTF8.GetBytes(json);
+                    await SendResponseAsync(context, bytes, "application/json; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                url = url.Trim();
+                if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? parsedUri) || parsedUri.Scheme != "opc.tcp")
+                {
+                    var errObj = new
+                    {
+                        error = true,
+                        message = $"Invalid OPC UA endpoint URL: '{url}'. Expected format 'opc.tcp://<host>:<port>'."
+                    };
+                    byte[] errBytes = JsonSerializer.SerializeToUtf8Bytes(errObj);
+                    await SendResponseAsync(context, errBytes, "application/json; charset=utf-8", HttpStatusCode.BadRequest, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                try
+                {
+                    using var scanCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    scanCts.CancelAfter(TimeSpan.FromSeconds(10));
+
+                    await using ManagedSession session = await AtlasClientHelper.ConnectAsync(
+                        url,
+                        timeoutMs: 8000,
+                        logger: _logger,
+                        ct: scanCts.Token).ConfigureAwait(false);
+
+                    var crawler = new AtlasCrawler(session, new CrawlerOptions
+                    {
+                        MaxDepth = depth,
+                        RootNodeId = ObjectIds.ObjectsFolder
+                    });
+
+                    AtlasCatalog catalog = await crawler.CrawlAsync(url, ct: scanCts.Token).ConfigureAwait(false);
+                    SemanticLabeler.LabelCatalog(catalog);
+
+                    string json = JsonCatalogExporter.ToJson(catalog);
+                    byte[] bytes = Encoding.UTF8.GetBytes(json);
+                    await SendResponseAsync(context, bytes, "application/json; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Live scan failed for endpoint {Url}", url);
+                    var errObj = new
+                    {
+                        error = true,
+                        message = $"Failed to scan endpoint '{url}': {ex.Message}"
+                    };
+                    byte[] errBytes = JsonSerializer.SerializeToUtf8Bytes(errObj);
+                    await SendResponseAsync(context, errBytes, "application/json; charset=utf-8", HttpStatusCode.BadGateway, ct).ConfigureAwait(false);
+                    return;
+                }
             }
 
             if (path == "/health")
@@ -191,11 +365,7 @@ public sealed class AtlasServer : IAsyncDisposable
                 };
 
                 byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(health, new JsonSerializerOptions { WriteIndented = true });
-                context.Response.ContentType = "application/json; charset=utf-8";
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                context.Response.ContentLength64 = bytes.Length;
-                await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
-                context.Response.Close();
+                await SendResponseAsync(context, bytes, "application/json; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -205,33 +375,20 @@ public sealed class AtlasServer : IAsyncDisposable
                 var oee = OeeCalculator.Calculate(ofContext, _multiplexer.GetSnapshot());
                 byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(oee, new JsonSerializerOptions { WriteIndented = true });
 
-                context.Response.ContentType = "application/json; charset=utf-8";
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                context.Response.ContentLength64 = bytes.Length;
-                await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
-                context.Response.Close();
+                await SendResponseAsync(context, bytes, "application/json; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
                 return;
             }
 
             if (path is "/" or "/ui" or "/index.html" or "/cockpit")
             {
                 byte[] html = EmbeddedUi.GetHtmlBytes();
-                context.Response.ContentType = "text/html; charset=utf-8";
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                context.Response.ContentLength64 = html.Length;
-                if (!string.Equals(context.Request.HttpMethod, "HEAD", StringComparison.OrdinalIgnoreCase))
-                {
-                    await context.Response.OutputStream.WriteAsync(html, ct).ConfigureAwait(false);
-                }
-                context.Response.Close();
+                await SendResponseAsync(context, html, "text/html; charset=utf-8", HttpStatusCode.OK, ct).ConfigureAwait(false);
                 return;
             }
 
             // Default: 404
-            context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            byte[] notFound = Encoding.UTF8.GetBytes("Endpoint not found. Valid endpoints: /, /ui, /metrics, /catalog, /health, /reconciliation, /ws");
-            await context.Response.OutputStream.WriteAsync(notFound, ct).ConfigureAwait(false);
-            context.Response.Close();
+            byte[] notFound = Encoding.UTF8.GetBytes("Endpoint not found. Valid endpoints: /, /ui, /metrics, /catalog, /health, /api/live, /api/scan, /reconciliation, /ws");
+            await SendResponseAsync(context, notFound, "text/plain; charset=utf-8", HttpStatusCode.NotFound, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -243,6 +400,27 @@ public sealed class AtlasServer : IAsyncDisposable
             }
             catch { }
         }
+    }
+
+    private static async Task SendResponseAsync(
+        HttpListenerContext context,
+        byte[] bytes,
+        string contentType,
+        HttpStatusCode statusCode,
+        CancellationToken ct)
+    {
+        context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+        context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, HEAD";
+        context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Accept, Authorization";
+        context.Response.ContentType = contentType;
+        context.Response.StatusCode = (int)statusCode;
+        context.Response.ContentLength64 = bytes.Length;
+
+        if (!string.Equals(context.Request.HttpMethod, "HEAD", StringComparison.OrdinalIgnoreCase))
+        {
+            await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
+        }
+        context.Response.Close();
     }
 
     public async ValueTask DisposeAsync()

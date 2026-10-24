@@ -10,7 +10,7 @@ Atlas is an open-source initiative designed to break vendor lock-in, eliminate p
 
 1. **Community Mapping Packs (Highest Impact):**
    - Add mappings for specific machine models (Siemens S7-1200/1500, Fanuc 0i/31i, Heidenhain, Mitsubishi, Haas).
-   - See `src/Opc.Ua.Atlas/Packs/` for existing examples.
+   - See `src/Atlas/Packs/` for existing examples.
 2. **Core Discovery & Decoding:**
    - Enhance complex ExtensionObject decoding and array unwrapping.
    - Improve passive profiling algorithms and correlation heuristics.
@@ -31,17 +31,17 @@ Atlas is an open-source initiative designed to break vendor lock-in, eliminate p
 dotnet build Atlas.slnx
 
 # Run all automated tests
-dotnet test tests/Opc.Ua.Atlas.Tests/Opc.Ua.Atlas.Tests.csproj
+dotnet test Atlas.slnx
 ```
 
 ### Running the Included Simulation Testbed
 Atlas includes a realistic 5-axis CNC machining center simulation server:
 ```bash
 # Terminal 1: Start the Fake CNC server on port 62541
-dotnet run --project simulation/Opc.Ua.FakeCnc -- -p 62541
+dotnet run --project simulation/Atlas.FakeCnc -- -p 62541
 
 # Terminal 2: Crawl and inspect
-dotnet run --project src/Opc.Ua.Atlas -- crawl opc.tcp://localhost:62541/FakeCncServer --pack siemens-s7-1500
+dotnet run --project src/Atlas -- crawl opc.tcp://localhost:62541/FakeCncServer --pack siemens-s7-1500
 ```
 
 ---
