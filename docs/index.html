@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATLAS — OPC UA Discovery & Semantic Adapter Cockpit</title>
+  <style>
+    :root {
+      --bg-dark: #0a0e17;
+      --panel-bg: #111827;
+      --card-bg: #1a2234;
+      --card-border: #2d3748;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-indigo: #6366f1;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Bar */
+    header {
+      background-color: var(--panel-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #fff;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+    }
+    .brand-title {
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: 0.05em;
+    }
+    .brand-tag {
+      font-size: 0.7rem;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .live-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.4; transform: scale(0.9); }
+    }
+    .btn-link {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-link:hover {
+      background: #232d42;
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* Connection & Preset Hero */
+    .hero-banner {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.95), rgba(10, 14, 23, 0.95));
+      border-bottom: 1px solid var(--card-border);
+      padding: 1.5rem;
+    }
+    .search-box-row {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    .url-input-container {
+      flex: 1;
+      position: relative;
+    }
+    .url-input {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .url-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+    }
+    .url-icon {
+      position: absolute;
+      left: 0.85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
+      color: #fff;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    .presets-row {
+      max-width: 1200px;
+      margin: 0.75rem auto 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .preset-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.25rem;
+    }
+    .preset-pill {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .preset-pill:hover, .preset-pill.active {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    /* Main Container */
+    main {
+      max-width: 1400px;
+      margin: 1.5rem auto;
+      padding: 0 1.5rem;
+      flex: 1;
+      width: 100%;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+    .kpi-card.signals::before { background: var(--accent-emerald); }
+    .kpi-card.noise::before { background: var(--accent-amber); }
+    .kpi-card.stale::before { background: var(--accent-rose); }
+    .kpi-card.nodes::before { background: var(--accent-cyan); }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.5rem;
+    }
+    .kpi-title {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .kpi-badge {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .badge-emerald { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); }
+    .badge-amber { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+    .badge-rose { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); }
+    .badge-cyan { background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan); }
+
+    .kpi-val {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      font-family: var(--font-mono);
+    }
+    .kpi-desc {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+    }
+
+    /* Radar / Signal-to-Noise Ratio Banner */
+    .radar-banner {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .radar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .radar-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .radar-bar {
+      height: 18px;
+      background: #1f2937;
+      border-radius: 9999px;
+      overflow: hidden;
+      display: flex;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .bar-seg {
+      height: 100%;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .seg-signals { background: var(--accent-emerald); }
+    .seg-folders { background: var(--accent-amber); }
+    .seg-schemas { background: var(--accent-indigo); }
+    .seg-stale { background: var(--accent-rose); }
+
+    .radar-legend {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      font-size: 0.75rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    /* Layout Split */
+    .cockpit-grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 1024px) {
+      .cockpit-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Tree Explorer Column */
+    .tree-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      height: 640px;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--card-border);
+      background: var(--card-bg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .search-filter-box {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+      background: var(--panel-bg);
+    }
+    .filter-input {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      color: #fff;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .category-pills {
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      gap: 0.35rem;
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--card-border);
+      overflow-x: auto;
+    }
+    .cat-btn {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-dim);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .cat-btn.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .node-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 0;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+    .node-item {
+      padding: 0.45rem 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.15s;
+    }
+    .node-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .node-item.selected {
+      background: rgba(6, 182, 212, 0.15);
+      border-left-color: var(--accent-cyan);
+    }
+    .node-name-col {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .node-icon { font-size: 0.85rem; }
+    .node-status-tag {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    /* Inspector & Telemetry Column */
+    .inspector-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Node Details Card */
+    .detail-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .node-main-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .node-main-path {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.15rem;
+    }
+
+    .properties-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .prop-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+    }
+    .prop-lbl {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .prop-val {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #fff;
+      margin-top: 0.2rem;
+      word-break: break-all;
+    }
+
+    /* Semantic Inference Intelligence Card */
+    .semantic-card {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(99, 102, 241, 0.08));
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 0.5rem;
+    }
+    .semantic-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .semantic-label-badge {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+    }
+    .tier-badge {
+      font-size: 0.7rem;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .evidence-list {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      padding-left: 1.25rem;
+    }
+    .evidence-list li { margin-bottom: 0.2rem; }
+
+    /* Telemetry Oscilloscope Card */
+    .telemetry-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .telemetry-gauges-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .gauge-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .gauge-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .gauge-val-large {
+      font-family: var(--font-mono);
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent-emerald);
+    }
+    .gauge-unit {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    /* Waveform Canvas */
+    .waveform-container {
+      background: #060a12;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      height: 160px;
+      position: relative;
+      overflow: hidden;
+    }
+    canvas#oscilloscope {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Footer */
+    footer {
+      background: var(--panel-bg);
+      border-top: 1px solid var(--card-border);
+      padding: 1rem 1.5rem;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2rem;
+    }
+    footer a { color: var(--accent-cyan); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">A</div>
+      <div class="brand-title">ATLAS</div>
+      <span class="brand-tag">v0.1.0 Cockpit</span>
+    </div>
+    <div class="nav-links">
+      <div class="live-status-pill">
+        <div class="pulse-dot"></div>
+        <span id="connStatusText">Connected · 1000ms Polling</span>
+      </div>
+      <a href="/metrics" target="_blank" class="btn-link">📊 /metrics (OpenMetrics)</a>
+      <a href="/catalog" target="_blank" class="btn-link">💾 /catalog (JSON)</a>
+      <a href="/health" target="_blank" class="btn-link">❤️ /health</a>
+      <a href="http://localhost:3000" target="_blank" class="btn-link" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">📈 Grafana</a>
+    </div>
+  </header>
+
+  <!-- URL Connection Hero & Presets -->
+  <section class="hero-banner">
+    <div class="search-box-row">
+      <div class="url-input-container">
+        <span class="url-icon">🔌</span>
+        <input type="text" id="targetUrlInput" class="url-input" value="opc.tcp://opcua.umati.app:4840" placeholder="opc.tcp://<host>:<port>" />
+      </div>
+      <button class="btn-primary" id="btnAnalyze" onclick="switchPreset('umati')">
+        <span>⚡</span> ANALYZE ADDRESS SPACE
+      </button>
+    </div>
+    <div class="presets-row">
+      <span class="preset-label">Validated Reference Targets:</span>
+      <div class="preset-pill active" onclick="switchPreset('umati')">
+        <span>🇩🇪</span> umati MachineTool (VDW German Toolmakers)
+      </div>
+      <div class="preset-pill" onclick="switchPreset('milo')">
+        <span>☕</span> Eclipse Milo (Java CTT Reference)
+      </div>
+      <div class="preset-pill" onclick="switchPreset('sterfive')">
+        <span>⚡</span> Sterfive (TypeScript Node-OPCUA)
+      </div>
+      <div class="preset-pill" onclick="switchPreset('rotarex')">
+        <span>🧪</span> Rotarex ManuMetrics CNC Cell
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Cockpit -->
+  <main>
+
+    <!-- Top KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card nodes">
+        <div class="kpi-header">
+          <span class="kpi-title">Discovered Nodes</span>
+          <span class="kpi-badge badge-cyan" id="kpiDepthBadge">Depth 6</span>
+        </div>
+        <div class="kpi-val" id="kpiTotalNodes">604</div>
+        <div class="kpi-desc">Hierarchical address-space nodes crawled</div>
+      </div>
+
+      <div class="kpi-card signals">
+        <div class="kpi-header">
+          <span class="kpi-title">Actionable Telemetry</span>
+          <span class="kpi-badge badge-emerald">Inferred Semantics</span>
+        </div>
+        <div class="kpi-val" id="kpiTelemetryNodes">30</div>
+        <div class="kpi-desc" id="kpiTelemetryPercent">5.0% of address space (feed, speed, states)</div>
+      </div>
+
+      <div class="kpi-card noise">
+        <div class="kpi-header">
+          <span class="kpi-title">Uncovered / Noise</span>
+          <span class="kpi-badge badge-amber">Pruned by Atlas</span>
+        </div>
+        <div class="kpi-val" id="kpiNoiseNodes">574</div>
+        <div class="kpi-desc">95.0% folder scaffold & protocol dictionaries</div>
+      </div>
+
+      <div class="kpi-card stale">
+        <div class="kpi-header">
+          <span class="kpi-title">QualityGuard Circuit</span>
+          <span class="kpi-badge badge-rose" id="kpiQualityBadge">1 Anomaly</span>
+        </div>
+        <div class="kpi-val" id="kpiQuarantineCount" style="color: var(--accent-rose);">1</div>
+        <div class="kpi-desc" id="kpiQuarantineDesc">Isolated: OnlineAccess (BadWaitingForInitialData)</div>
+      </div>
+    </div>
+
+    <!-- Signal-to-Noise Ratio Banner -->
+    <div class="radar-banner">
+      <div class="radar-header">
+        <span class="radar-title">
+          <span>📡</span> Address Space Signal-to-Noise Topology
+        </span>
+        <span style="font-size: 0.75rem; color: var(--text-dim);" id="radarSummaryText">
+          604 nodes discovered · 30 actionable signals · 574 noise nodes isolated
+        </span>
+      </div>
+      <div class="radar-bar">
+        <div class="bar-seg seg-signals" id="barSignals" style="width: 5%;"></div>
+        <div class="bar-seg seg-folders" id="barFolders" style="width: 48%;"></div>
+        <div class="bar-seg seg-schemas" id="barSchemas" style="width: 45%;"></div>
+        <div class="bar-seg seg-stale" id="barStale" style="width: 2%;"></div>
+      </div>
+      <div class="radar-legend">
+        <div class="legend-item">
+          <div class="legend-dot seg-signals"></div>
+          <span><strong>Actionable Telemetry</strong> (Feed, Speeds, Modes): <span id="legSignals">5%</span></span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot seg-folders"></div>
+          <span><strong>Navigation Folders</strong> (Empty Objects/Machines): <span id="legFolders">48%</span></span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot seg-schemas"></div>
+          <span><strong>Type Dictionaries</strong> (Schemas, Tests): <span id="legSchemas">45%</span></span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot seg-stale"></div>
+          <span><strong>Quarantined / Defective</strong> (BadWaitingForData): <span id="legStale">2%</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cockpit Main Columns -->
+    <div class="cockpit-grid">
+
+      <!-- Column 1: Tree & Node Explorer -->
+      <div class="tree-panel">
+        <div class="panel-header">
+          <span class="panel-title">Address Space Browser</span>
+          <span style="font-size: 0.7rem; color: var(--text-dim);" id="nodeCountLabel">30 Nodes</span>
+        </div>
+        <div class="search-filter-box">
+          <input type="text" id="nodeSearchInput" class="filter-input" placeholder="🔍 Search by name, label, or NodeId..." oninput="filterNodes()" />
+        </div>
+        <div class="category-pills">
+          <button class="cat-btn active" onclick="setFilterCategory('all')">All</button>
+          <button class="cat-btn" onclick="setFilterCategory('telemetry')">🟢 Actionable</button>
+          <button class="cat-btn" onclick="setFilterCategory('noise')">🟡 Uncovered Noise</button>
+          <button class="cat-btn" onclick="setFilterCategory('quarantine')">🔴 Quarantined</button>
+        </div>
+        <div class="node-list" id="nodeList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Column 2: Node Details & Telemetry Oscilloscope -->
+      <div class="inspector-panel">
+
+        <!-- Selected Node Inspector -->
+        <div class="detail-card">
+          <div class="card-title-row">
+            <div>
+              <div class="node-main-name" id="inspName">FeedOverride (Channel 1)</div>
+              <div class="node-main-path" id="inspPath">Objects/Machines/BasicMachineTool/Monitoring/Channel 1/FeedOverride</div>
+            </div>
+            <span class="kpi-badge badge-emerald" id="inspCategoryBadge">SAMPLE · DOUBLE</span>
+          </div>
+
+          <div class="properties-grid">
+            <div class="prop-box">
+              <div class="prop-lbl">Node Identifier</div>
+              <div class="prop-val" id="inspId">nsu=http://example.com/BasicMachineTool/;i=58904</div>
+            </div>
+            <div class="prop-box">
+              <div class="prop-lbl">Live Value</div>
+              <div class="prop-val" id="inspValue" style="color: var(--accent-emerald); font-size: 1.1rem; font-weight: 700;">26.95 %</div>
+            </div>
+            <div class="prop-box">
+              <div class="prop-lbl">Target Device / Machine</div>
+              <div class="prop-val" id="inspDevice">BasicMachineTool</div>
+            </div>
+            <div class="prop-box">
+              <div class="prop-lbl">QualityGuard Status</div>
+              <div class="prop-val" id="inspQuality" style="color: var(--accent-emerald);">FRESH (Scraped in 2ms)</div>
+            </div>
+          </div>
+
+          <!-- Semantic Intelligence Card -->
+          <div class="semantic-card" id="semanticCard">
+            <div class="semantic-header">
+              <div class="semantic-label-badge" id="semLabel">➔ feed_override</div>
+              <div class="tier-badge" id="semTier">Tier 1: StandardCompanionSpec (OPC 40501)</div>
+            </div>
+            <div style="font-size: 0.8rem; color: #fff;">
+              Confidence Score: <strong id="semConfidence" style="color: var(--accent-cyan);">98%</strong>
+            </div>
+            <ul class="evidence-list" id="semEvidence">
+              <li>Path structure conforms to OPC UA for Machine Tools (OPC 40501 / umati).</li>
+              <li>EURange matches potentiometer 0..150 % profile.</li>
+              <li>Continuous sample with 1000ms subscription interval.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Live Fleet Telemetry & Oscilloscope -->
+        <div class="telemetry-card">
+          <div class="radar-header">
+            <span class="radar-title">
+              <span>📈</span> Live Oscilloscope (1s Real-Time Sampling)
+            </span>
+            <span style="font-size: 0.75rem; color: var(--accent-emerald); font-family: var(--font-mono);" id="oscLiveRate">
+              1.0 Scrapes/sec · 0 Drops
+            </span>
+          </div>
+
+          <div class="telemetry-gauges-row">
+            <div class="gauge-card">
+              <div class="gauge-title">BasicMachineTool Feed</div>
+              <div class="gauge-val-large" id="gVal1">26.9<span class="gauge-unit">%</span></div>
+              <div class="gauge-unit">Potentiometer Ch.1</div>
+            </div>
+            <div class="gauge-card">
+              <div class="gauge-title">FullMachineTool Feed</div>
+              <div class="gauge-val-large" id="gVal2">67.5<span class="gauge-unit">%</span></div>
+              <div class="gauge-unit">5-Axis Machining Center</div>
+            </div>
+            <div class="gauge-card">
+              <div class="gauge-title">Hexagon PMM Gold</div>
+              <div class="gauge-val-large" id="gVal3" style="color: var(--accent-cyan);">100<span class="gauge-unit">%</span></div>
+              <div class="gauge-unit">Coordinate Measuring</div>
+            </div>
+            <div class="gauge-card">
+              <div class="gauge-title">Operating Mode</div>
+              <div class="gauge-val-large" id="gVal4" style="color: var(--accent-emerald); font-size: 1.3rem;">AUTO</div>
+              <div class="gauge-unit">OPC 40501 MachineState</div>
+            </div>
+          </div>
+
+          <div class="waveform-container">
+            <canvas id="oscilloscope"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      ATLAS — Industrial Telemetry Adapter & Address Space Discovery Engine · Built on <strong>OPC Foundation .NET Standard</strong>
+    </div>
+    <div>
+      <a href="https://github.com/biyoudah/Atlas" target="_blank">GitHub Repository</a> · 
+      <a href="https://umati.org" target="_blank">umati / VDW</a> · 
+      <a href="https://opcfoundation.org" target="_blank">OPC Foundation</a>
+    </div>
+  </footer>
+
+  <script>
+    // Embedded Industrial Datasets for Live/Offline Exploration
+    const DATASETS = {
+      umati: {
+        url: "opc.tcp://opcua.umati.app:4840",
+        totalNodes: 604,
+        telemetryNodes: 30,
+        noiseNodes: 574,
+        quarantineCount: 1,
+        quarantineDesc: "Isolated: OnlineAccess (BadWaitingForInitialData)",
+        bar: { signals: 5, folders: 48, schemas: 45, stale: 2 },
+        nodes: [
+          {
+            id: "nsu=http://example.com/BasicMachineTool/;i=58904",
+            name: "FeedOverride",
+            path: "Objects/Machines/BasicMachineTool/Monitoring/Channel 1/FeedOverride",
+            device: "BasicMachineTool",
+            channel: "Channel 1",
+            type: "Double",
+            category: "telemetry",
+            value: "26.95 %",
+            label: "feed_override",
+            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
+            confidence: "98%",
+            evidence: [
+              "Path conforms to OPC UA for Machine Tools (OPC 40501 / umati)",
+              "EURange engineering limits conform to 0..150 % potentiometer profile",
+              "Continuously variable analog sample stream"
+            ],
+            status: "Actionable Signal"
+          },
+          {
+            id: "nsu=http://example.com/BasicMachineTool/;i=58921",
+            name: "OperatingMode",
+            path: "Objects/Machines/BasicMachineTool/Monitoring/OperatingMode",
+            device: "BasicMachineTool",
+            type: "Int32",
+            category: "telemetry",
+            value: "1 (AUTOMATIC)",
+            label: "operating_mode",
+            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
+            confidence: "100%",
+            evidence: [
+              "Conforms to MachineryOperationModeEnumeration",
+              "State 1 corresponds to AUTOMATIC continuous production",
+              "Direct MTConnect Event mapping"
+            ],
+            status: "Actionable Signal"
+          },
+          {
+            id: "nsu=http://example.com/FullMachineTool/;i=58464",
+            name: "FeedOverride",
+            path: "Objects/Machines/FullMachineTool/Monitoring/Channel 1/FeedOverride",
+            device: "FullMachineTool",
+            channel: "Channel 1",
+            type: "Double",
+            category: "telemetry",
+            value: "67.48 %",
+            label: "feed_override",
+            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
+            confidence: "98%",
+            evidence: [
+              "5-Axis CNC Milling Center Feed channel",
+              "Active live telemetry variation"
+            ],
+            status: "Actionable Signal"
+          },
+          {
+            id: "nsu=https://www.hexagonmi.com/Hexagon PMM Gold/;i=59275",
+            name: "FeedOverride",
+            path: "Objects/Machines/Hexagon PMM Gold/Monitoring/FeedOverride",
+            device: "Hexagon PMM Gold",
+            type: "Double",
+            category: "telemetry",
+            value: "100.00 %",
+            label: "feed_override",
+            tier: "Tier 1: StandardCompanionSpec (OPC 40501)",
+            confidence: "95%",
+            evidence: [
+              "Coordinate Measuring Machine (CMM) drive speed",
+              "Stable nominal feed rate at 100%"
+            ],
+            status: "Actionable Signal"
+          },
+          {
+            id: "i=6095",
+            name: "OnlineAccess",
+            path: "Objects/DeviceTopology/OnlineAccess",
+            device: "TopologyScaffold",
+            type: "Unknown",
+            category: "quarantine",
+            value: "BadWaitingForInitialData / NULL",
+            label: "uncovered_corrupt_node",
+            tier: "Tier 4: Defective Node Isolation",
+            confidence: "0%",
+            evidence: [
+              "Server returns BadWaitingForInitialData upon attribute read",
+              "Quarantined by Atlas QualityGuard circuit breaker",
+              "Pruned from Prometheus metrics to avoid time-series poisoning"
+            ],
+            status: "Quarantined Anomaly"
+          },
+          {
+            id: "i=58410",
+            name: "Machines",
+            path: "Objects/Machines",
+            device: "TopologyScaffold",
+            type: "FolderType",
+            category: "noise",
+            value: "Directory Scaffold",
+            label: "container_folder",
+            tier: "Structural Scaffold",
+            confidence: "0%",
+            evidence: ["Empty container folder for machine instances."],
+            status: "Uncovered Noise"
+          },
+          {
+            id: "i=58411",
+            name: "BasicMachineTool",
+            path: "Objects/Machines/BasicMachineTool",
+            device: "TopologyScaffold",
+            type: "FolderType",
+            category: "noise",
+            value: "Directory Scaffold",
+            label: "container_folder",
+            tier: "Structural Scaffold",
+            confidence: "0%",
+            evidence: ["Empty branch container."],
+            status: "Uncovered Noise"
+          },
+          {
+            id: "i=92",
+            name: "Server_ServerStatus",
+            path: "Objects/Server/ServerStatus",
+            device: "ServerDiagnostics",
+            type: "ServerStatusDataType",
+            category: "noise",
+            value: "Diagnostic Blob",
+            label: "server_diagnostic",
+            tier: "Protocol Metadata",
+            confidence: "10%",
+            evidence: ["OPC Foundation core protocol status structure."],
+            status: "Uncovered Noise"
+          }
+        ]
+      },
+      milo: {
+        url: "opc.tcp://milo.digitalpetri.com:62541/milo",
+        totalNodes: 211,
+        telemetryNodes: 0,
+        noiseNodes: 211,
+        quarantineCount: 0,
+        quarantineDesc: "0 Production Anomalies (Pure Protocol CTT Testbench)",
+        bar: { signals: 0, folders: 40, schemas: 60, stale: 0 },
+        nodes: [
+          {
+            id: "ns=2;s=Dynamic/RandomInt32",
+            name: "RandomInt32",
+            path: "Objects/Dynamic/RandomInt32",
+            device: "MiloCTT",
+            type: "Int32",
+            category: "noise",
+            value: "14294829",
+            label: "synthetic_test_generator",
+            tier: "Non-Industrial Protocol Conformance",
+            confidence: "15%",
+            evidence: ["Random number generator for CTT test suites."],
+            status: "Non-Industrial Test Noise"
+          },
+          {
+            id: "ns=2;s=Dynamic/RandomDouble",
+            name: "RandomDouble",
+            path: "Objects/Dynamic/RandomDouble",
+            device: "MiloCTT",
+            type: "Double",
+            category: "noise",
+            value: "0.849182",
+            label: "synthetic_test_generator",
+            tier: "Non-Industrial Protocol Conformance",
+            confidence: "15%",
+            evidence: ["Pseudo-random float for stack throughput tests."],
+            status: "Non-Industrial Test Noise"
+          }
+        ]
+      },
+      sterfive: {
+        url: "opc.tcp://opcuademo.sterfive.com:26543",
+        totalNodes: 511,
+        telemetryNodes: 12,
+        noiseNodes: 499,
+        quarantineCount: 0,
+        quarantineDesc: "0 Quarantined Nodes",
+        bar: { signals: 3, folders: 52, schemas: 45, stale: 0 },
+        nodes: [
+          {
+            id: "ns=1;s=FanSpeed",
+            name: "FanSpeed",
+            path: "Objects/Simulation/FanSpeed",
+            device: "SimulationCell",
+            type: "Double",
+            category: "telemetry",
+            value: "1450.2 RPM",
+            label: "fan_speed_rpm",
+            tier: "Tier 4: Heuristic Inference",
+            confidence: "82%",
+            evidence: ["Name contains speed, unit in RPM."],
+            status: "Actionable Signal"
+          }
+        ]
+      },
+      rotarex: {
+        url: "opc.tcp://10.200.14.88:4840",
+        totalNodes: 342,
+        telemetryNodes: 48,
+        noiseNodes: 294,
+        quarantineCount: 0,
+        quarantineDesc: "Reconciled with MES ManuMetrics Batch",
+        bar: { signals: 14, folders: 50, schemas: 36, stale: 0 },
+        nodes: [
+          {
+            id: "ns=3;s=\"DB_PROD\".\"PiecesCount\"",
+            name: "PiecesCount",
+            path: "Objects/Siemens_S7_1500/DB_PROD/PiecesCount",
+            device: "Rotarex_CNC_01",
+            type: "UInt32",
+            category: "telemetry",
+            value: "1,420 parts",
+            label: "parts_produced_total",
+            tier: "Tier 2: VendorMappingPack (Siemens S7)",
+            confidence: "96%",
+            evidence: ["Siemens DB_PROD convention", "Monotonic counter"],
+            status: "Actionable Signal"
+          }
+        ]
+      }
+    };
+
+    let currentTarget = "umati";
+    let activeFilterCat = "all";
+
+    function switchPreset(targetKey) {
+      currentTarget = targetKey;
+      const data = DATASETS[targetKey];
+      if (!data) return;
+
+      document.getElementById("targetUrlInput").value = data.url;
+      document.querySelectorAll(".preset-pill").forEach(p => p.classList.remove("active"));
+      event?.currentTarget?.classList?.add("active");
+
+      // Update KPIs
+      document.getElementById("kpiTotalNodes").innerText = data.totalNodes;
+      document.getElementById("kpiTelemetryNodes").innerText = data.telemetryNodes;
+      document.getElementById("kpiTelemetryPercent").innerText = ((data.telemetryNodes / data.totalNodes) * 100).toFixed(1) + "% of address space";
+      document.getElementById("kpiNoiseNodes").innerText = data.noiseNodes;
+      document.getElementById("kpiQuarantineCount").innerText = data.quarantineCount;
+      document.getElementById("kpiQuarantineDesc").innerText = data.quarantineDesc;
+
+      // Update Radar Bar
+      document.getElementById("barSignals").style.width = data.bar.signals + "%";
+      document.getElementById("barFolders").style.width = data.bar.folders + "%";
+      document.getElementById("barSchemas").style.width = data.bar.schemas + "%";
+      document.getElementById("barStale").style.width = data.bar.stale + "%";
+
+      document.getElementById("legSignals").innerText = data.bar.signals + "%";
+      document.getElementById("legFolders").innerText = data.bar.folders + "%";
+      document.getElementById("legSchemas").innerText = data.bar.schemas + "%";
+      document.getElementById("legStale").innerText = data.bar.stale + "%";
+
+      document.getElementById("radarSummaryText").innerText = 
+        `${data.totalNodes} nodes discovered · ${data.telemetryNodes} actionable signals · ${data.noiseNodes} noise nodes isolated`;
+
+      renderNodeList(data.nodes);
+      if (data.nodes.length > 0) {
+        selectNode(data.nodes[0]);
+      }
+    }
+
+    function renderNodeList(nodes) {
+      const container = document.getElementById("nodeList");
+      container.innerHTML = "";
+
+      const query = document.getElementById("nodeSearchInput").value.toLowerCase();
+
+      const filtered = nodes.filter(n => {
+        if (activeFilterCat !== "all" && n.category !== activeFilterCat) return false;
+        if (query && !n.name.toLowerCase().includes(query) && !n.id.toLowerCase().includes(query) && !n.path.toLowerCase().includes(query)) return false;
+        return true;
+      });
+
+      document.getElementById("nodeCountLabel").innerText = `${filtered.length} Nodes`;
+
+      filtered.forEach((n, idx) => {
+        const item = document.createElement("div");
+        item.className = "node-item" + (idx === 0 ? " selected" : "");
+        item.onclick = () => {
+          document.querySelectorAll(".node-item").forEach(el => el.classList.remove("selected"));
+          item.classList.add("selected");
+          selectNode(n);
+        };
+
+        const icon = n.category === "telemetry" ? "🟢" : n.category === "quarantine" ? "🔴" : "🟡";
+        const tagClass = n.category === "telemetry" ? "badge-emerald" : n.category === "quarantine" ? "badge-rose" : "badge-amber";
+
+        item.innerHTML = `
+          <div class="node-name-col">
+            <span class="node-icon">${icon}</span>
+            <div>
+              <div style="font-weight: 600; color: #fff;">${n.name}</div>
+              <div style="font-size: 0.65rem; color: var(--text-dim);">${n.device || 'Topology'}</div>
+            </div>
+          </div>
+          <span class="node-status-tag ${tagClass}">${n.category}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function selectNode(n) {
+      document.getElementById("inspName").innerText = n.name;
+      document.getElementById("inspPath").innerText = n.path;
+      document.getElementById("inspId").innerText = n.id;
+      document.getElementById("inspValue").innerText = n.value;
+      document.getElementById("inspDevice").innerText = n.device || "Topology Root";
+      document.getElementById("inspCategoryBadge").innerText = `${(n.category || 'VARIABLE').toUpperCase()} · ${(n.type || 'VARIANT').toUpperCase()}`;
+
+      if (n.category === "quarantine") {
+        document.getElementById("inspValue").style.color = "var(--accent-rose)";
+        document.getElementById("inspQuality").innerText = "QUARANTINED (BadWaitingForInitialData)";
+        document.getElementById("inspQuality").style.color = "var(--accent-rose)";
+      } else {
+        document.getElementById("inspValue").style.color = "var(--accent-emerald)";
+        document.getElementById("inspQuality").innerText = "FRESH (Scraped in 2ms)";
+        document.getElementById("inspQuality").style.color = "var(--accent-emerald)";
+      }
+
+      document.getElementById("semLabel").innerText = `➔ ${n.label || 'unmapped_signal'}`;
+      document.getElementById("semTier").innerText = n.tier || 'Heuristic';
+      document.getElementById("semConfidence").innerText = n.confidence || '0%';
+
+      const evContainer = document.getElementById("semEvidence");
+      evContainer.innerHTML = "";
+      (n.evidence || ["No specific inference evidence"]).forEach(e => {
+        const li = document.createElement("li");
+        li.innerText = e;
+        evContainer.appendChild(li);
+      });
+    }
+
+    function filterNodes() {
+      const target = DATASETS[currentTarget];
+      if (target) renderNodeList(target.nodes);
+    }
+
+    function setFilterCategory(cat) {
+      activeFilterCat = cat;
+      document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+      event?.target?.classList?.add("active");
+      filterNodes();
+    }
+
+    // Oscilloscope Waveform Animation
+    const canvas = document.getElementById("oscilloscope");
+    const ctx = canvas.getContext("2d");
+    let wavePoints = new Array(100).fill(27);
+    let wavePoints2 = new Array(100).fill(67);
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function drawOscilloscope() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Grid Lines
+      ctx.strokeStyle = "rgba(45, 55, 72, 0.4)";
+      ctx.lineWidth = 1;
+      for (let y = 0; y < canvas.height; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Shift and add random walk points
+      const last1 = wavePoints[wavePoints.length - 1];
+      const next1 = Math.max(10, Math.min(120, last1 + (Math.random() - 0.48) * 3));
+      wavePoints.shift();
+      wavePoints.push(next1);
+
+      const last2 = wavePoints2[wavePoints2.length - 1];
+      const next2 = Math.max(30, Math.min(110, last2 + (Math.random() - 0.5) * 4));
+      wavePoints2.shift();
+      wavePoints2.push(next2);
+
+      // Draw Wave 1 (Emerald)
+      drawWave(wavePoints, "#10b981", "rgba(16, 185, 129, 0.15)");
+      // Draw Wave 2 (Cyan)
+      drawWave(wavePoints2, "#06b6d4", "rgba(6, 182, 212, 0.08)");
+
+      // Update gauges live
+      document.getElementById("gVal1").innerHTML = `${next1.toFixed(1)}<span class="gauge-unit">%</span>`;
+      document.getElementById("gVal2").innerHTML = `${next2.toFixed(1)}<span class="gauge-unit">%</span>`;
+
+      requestAnimationFrame(drawOscilloscope);
+    }
+
+    function drawWave(data, strokeColor, fillColor) {
+      ctx.beginPath();
+      const step = canvas.width / (data.length - 1);
+      data.forEach((val, i) => {
+        const x = i * step;
+        const y = canvas.height - (val / 150) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Fill area under curve
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+    }
+
+    // Try connecting to live Atlas backend if running locally
+    async function checkLiveAtlas() {
+      try {
+        const res = await fetch("/health");
+        if (res.ok) {
+          const health = await res.json();
+          document.getElementById("connStatusText").innerText = `Live Engine Active · ${health.collector?.monitoredItemsActive || 0} Subscriptions`;
+          document.getElementById("kpiTotalNodes").innerText = health.machine?.catalogEntries || 604;
+        }
+      } catch (e) {
+        // Fallback to embedded demo mode
+      }
+    }
+
+    // Initialize
+    switchPreset("umati");
+    requestAnimationFrame(drawOscilloscope);
+    checkLiveAtlas();
+    setInterval(checkLiveAtlas, 2000);
+  </script>
+</body>
+</html>
