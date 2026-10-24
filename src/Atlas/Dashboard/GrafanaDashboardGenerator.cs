@@ -86,19 +86,19 @@ public static class GrafanaDashboardGenerator
         }
 
         // --- ROW 1: MTConnect Events & Operational KPIs (y=currentY, h=4) ---
-        // 1. Machine State
-        if (byLabel.TryGetValue("machine_state", out var stateEntry))
+        // 1. Machine State / Operating Mode
+        if (byLabel.TryGetValue("machine_state", out var stateEntry) || byLabel.TryGetValue("operating_mode", out stateEntry))
         {
             panels.Add(CreateStatPanel(
                 id: panelId++,
-                title: "Machine State",
-                expr: $"opcua_machine_state{{machine=\"{machineName}\"}}",
+                title: "Machine State / Operating Mode",
+                expr: $"opcua_operating_mode{{machine=\"{machineName}\"}} or opcua_machine_state{{machine=\"{machineName}\"}}",
                 x: 0, y: currentY, w: 6, h: 4,
                 datasource: datasource,
                 colorMode: "background",
                 mappings:
                 [
-                    new { type = "value", options = new Dictionary<string, object> { ["1"] = new { text = "RUNNING", color = "green" }, ["0"] = new { text = "STOPPED", color = "yellow" } } }
+                    new { type = "value", options = new Dictionary<string, object> { ["1"] = new { text = "AUTOMATIC / RUNNING", color = "green" }, ["0"] = new { text = "MANUAL / STOPPED", color = "yellow" }, ["2"] = new { text = "SETUP", color = "blue" } } }
                 ]));
         }
 
@@ -130,7 +130,7 @@ public static class GrafanaDashboardGenerator
                 fixedColor: "purple"));
         }
 
-        // 4. Spindle Load
+        // 4. Spindle Load / Feed Override
         if (byLabel.TryGetValue("spindle_load", out var loadEntry))
         {
             panels.Add(CreateGaugePanel(
@@ -147,6 +147,24 @@ public static class GrafanaDashboardGenerator
                     new { value = (double?)null, color = "green" },
                     new { value = (double?)75.0, color = "yellow" },
                     new { value = (double?)90.0, color = "red" }
+                ]));
+        }
+        else if (byLabel.TryGetValue("feed_override", out var feedOvrEntry))
+        {
+            panels.Add(CreateGaugePanel(
+                id: panelId++,
+                title: "Feed Override",
+                expr: $"opcua_feed_override{{machine=\"{machineName}\"}}",
+                x: 18, y: currentY, w: 6, h: 4,
+                datasource: datasource,
+                unit: "percent",
+                min: 0,
+                max: 150,
+                thresholds:
+                [
+                    new { value = (double?)null, color = "green" },
+                    new { value = (double?)105.0, color = "yellow" },
+                    new { value = (double?)125.0, color = "red" }
                 ]));
         }
 
