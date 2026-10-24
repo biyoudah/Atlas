@@ -34,6 +34,7 @@ public static class Program
                 "diff-live" => await HandleDiffLiveAsync(subArgs).ConfigureAwait(false),
                 "dashboard" => await HandleDashboardAsync(subArgs).ConfigureAwait(false),
                 "serve" => await HandleServeAsync(subArgs).ConfigureAwait(false),
+                "ui" => await HandleServeAsync(subArgs, openBrowser: true).ConfigureAwait(false),
                 "mcp" => await HandleMcpAsync(subArgs).ConfigureAwait(false),
                 _ => HandleUnknownCommand(command)
             };
@@ -56,11 +57,12 @@ public static class Program
               atlas <command> [options]
 
             COMMANDS:
+              ui [endpoint-url]                 Launch interactive visual cockpit in default browser
               crawl <endpoint-url>              Crawl address space and generate catalog
               diff <base.json> <target.json>    Compare two catalogs to detect hidden tags / elevations
               diff-live <endpoint-url>          Compare anonymous vs authenticated view on live PLC
               dashboard <catalog.json>          Generate turnkey Grafana v10 JSON dashboard
-              serve <endpoint-url>              Serve Prometheus metrics (/metrics) & WebSocket gateway (/ws)
+              serve <endpoint-url>              Serve Prometheus metrics (/metrics), Web UI (/) & WebSocket gateway (/ws)
               mcp                               Run native Model Context Protocol (MCP) server over stdio
 
             CRAWL OPTIONS:
@@ -404,7 +406,7 @@ public static class Program
         return 0;
     }
 
-    private static async Task<int> HandleServeAsync(string[] args)
+    private static async Task<int> HandleServeAsync(string[] args, bool openBrowser = false)
     {
         int port = 9090;
         string machine = "default_machine";
@@ -450,6 +452,20 @@ public static class Program
             else if (arg is "--target-cycle-time" && i + 1 < args.Length) double.TryParse(args[++i], System.Globalization.CultureInfo.InvariantCulture, out targetCycleSec);
             else if (arg is "--planned-minutes" && i + 1 < args.Length) double.TryParse(args[++i], System.Globalization.CultureInfo.InvariantCulture, out plannedMin);
             else if (arg is "--scrap-parts" && i + 1 < args.Length) int.TryParse(args[++i], out scrapParts);
+        }
+
+        if (string.IsNullOrEmpty(endpointUrl) && string.IsNullOrEmpty(catalogFile))
+        {
+            if (File.Exists("umati_depth6.json"))
+            {
+                catalogFile = "umati_depth6.json";
+                Console.Error.WriteLine("Loading pre-discovered umati catalog (umati_depth6.json)...");
+            }
+            else
+            {
+                endpointUrl = "opc.tcp://opcua.umati.app:4840";
+                Console.Error.WriteLine("Defaulting to official umati testbench (opc.tcp://opcua.umati.app:4840)...");
+            }
         }
 
         string? resolvedPassword = ResolvePassword(password, passwordEnv, passwordFile);
@@ -535,6 +551,7 @@ public static class Program
             ========================================================================
              Atlas Serving Layer Active on {prefix}
             ========================================================================
+             - Web UI Cockpit:     {prefix}
              - Prometheus Metrics: {prefix}metrics
              - Address Space Catalog: {prefix}catalog
              - Health Status:      {prefix}health
@@ -544,6 +561,19 @@ public static class Program
             Press Ctrl+C to terminate.
             """);
         Console.ResetColor();
+
+        if (openBrowser)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = prefix,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
 
         var tcs = new TaskCompletionSource();
         Console.CancelKeyPress += (_, e) =>

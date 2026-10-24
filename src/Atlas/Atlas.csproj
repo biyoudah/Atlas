@@ -4,7 +4,7 @@
     <AssemblyName>Atlas</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Atlas.Industrial.OpcUa</PackageId>
-    <Version>0.1.0-alpha</Version>
+    <Version>0.1.0</Version>
     <Authors>Atlas Project Contributors and Atlas Contributors</Authors>
     <Description>Atlas — Industrial OPC UA Telemetry Adapter, Address Space Discovery &amp; Turnkey Visualization Engine.</Description>
     <PackageTags>opcua;industrial-iot;mtconnect;prometheus;grafana;mcp;iiot;plc;cnc</PackageTags>

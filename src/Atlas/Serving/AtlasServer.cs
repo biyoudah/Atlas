@@ -213,9 +213,20 @@ public sealed class AtlasServer : IAsyncDisposable
                 return;
             }
 
+            if (path is "/" or "/ui" or "/index.html" or "/cockpit")
+            {
+                byte[] html = EmbeddedUi.GetHtmlBytes();
+                context.Response.ContentType = "text/html; charset=utf-8";
+                context.Response.StatusCode = (int)HttpStatusCode.OK;
+                context.Response.ContentLength64 = html.Length;
+                await context.Response.OutputStream.WriteAsync(html, ct).ConfigureAwait(false);
+                context.Response.Close();
+                return;
+            }
+
             // Default: 404
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            byte[] notFound = Encoding.UTF8.GetBytes("Endpoint not found. Valid endpoints: /metrics, /catalog, /health, /reconciliation, /ws");
+            byte[] notFound = Encoding.UTF8.GetBytes("Endpoint not found. Valid endpoints: /, /ui, /metrics, /catalog, /health, /reconciliation, /ws");
             await context.Response.OutputStream.WriteAsync(notFound, ct).ConfigureAwait(false);
             context.Response.Close();
         }
