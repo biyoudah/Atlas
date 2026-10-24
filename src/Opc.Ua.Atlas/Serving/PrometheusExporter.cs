@@ -27,7 +27,8 @@ public static class PrometheusExporter
         QualityGuard? qualityGuard = null,
         SyntheticMetricsEngine? syntheticEngine = null,
         Mes.OeeResult? oeeResult = null,
-        CollectorDiagnostics? diagnostics = null)
+        CollectorDiagnostics? diagnostics = null,
+        bool includeNodeIdLabel = true)
     {
         var sb = new StringBuilder();
         var writtenHelp = new HashSet<string>(StringComparer.Ordinal);
@@ -42,6 +43,7 @@ public static class PrometheusExporter
             string labelName = entry.Inferred?.Label ?? SanitizeMetricName(entry.BrowseName ?? "node");
             string metricName = FormatMetricName(labelName, entry.Unit);
             string safeId = entry.Id.Replace("\"", "\\\"");
+            string idLabelSuffix = includeNodeIdLabel ? $",node_id=\"{safeId}\"" : string.Empty;
 
             // State / Enum / String values -> State-Set metrics
             if (val is string strVal)
@@ -53,7 +55,7 @@ public static class PrometheusExporter
                 }
 
                 string safeState = strVal.ToUpperInvariant().Replace("\"", "\\\"");
-                sb.AppendLine($"{metricName}{{machine=\"{machineName}\",node_id=\"{safeId}\",state=\"{safeState}\"}} 1");
+                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{idLabelSuffix},state=\"{safeState}\"}} 1");
                 continue;
             }
 
@@ -66,7 +68,7 @@ public static class PrometheusExporter
                     sb.AppendLine($"# TYPE {metricName} gauge");
                 }
 
-                sb.AppendLine($"{metricName}{{machine=\"{machineName}\",node_id=\"{safeId}\"}} {(bVal ? "1" : "0")}");
+                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{idLabelSuffix}}} {(bVal ? "1" : "0")}");
                 continue;
             }
 
@@ -84,7 +86,7 @@ public static class PrometheusExporter
                 }
 
                 string formattedVal = numVal.ToString("G", CultureInfo.InvariantCulture);
-                sb.AppendLine($"{metricName}{{machine=\"{machineName}\",node_id=\"{safeId}\"}} {formattedVal}");
+                sb.AppendLine($"{metricName}{{machine=\"{machineName}\"{idLabelSuffix}}} {formattedVal}");
             }
         }
 
@@ -171,7 +173,7 @@ public static class PrometheusExporter
             if (writtenHelp.Add("atlas_collector_uptime_seconds"))
             {
                 sb.AppendLine("# HELP atlas_collector_uptime_seconds Atlas edge collector uptime in seconds");
-                sb.AppendLine("# TYPE atlas_collector_uptime_seconds counter");
+                sb.AppendLine("# TYPE atlas_collector_uptime_seconds gauge");
             }
             sb.AppendLine($"atlas_collector_uptime_seconds{{machine=\"{machineName}\"}} {diagnostics.UptimeSeconds.ToString("F1", CultureInfo.InvariantCulture)}");
 

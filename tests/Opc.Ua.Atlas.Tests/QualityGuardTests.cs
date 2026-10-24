@@ -92,4 +92,38 @@ public class QualityGuardTests
         var freshRecords = guard.EvaluateStaleness(DateTime.UtcNow);
         Assert.That(freshRecords, Is.Empty);
     }
+
+    [Test]
+    public void ProcessGoodValue_NonCounter_DoesNotAccumulateOffsetsOnDrops()
+    {
+        var guard = new QualityGuard();
+        string nodeId = "ns=2;s=SpindleSpeed";
+
+        // Spindle speed drops from 10000 to 0 (normal machine stop)
+        guard.ProcessGoodValue(nodeId, 10000.0, DateTime.UtcNow, isCounter: false);
+        var r2 = guard.ProcessGoodValue(nodeId, 0.0, DateTime.UtcNow, isCounter: false);
+
+        Assert.That(r2.Value, Is.EqualTo(0.0));
+        Assert.That(r2.CounterOffset, Is.EqualTo(0.0));
+    }
+
+    [Test]
+    public void ProcessFailure_CustomThreshold_MarksBadExactlyAtThreshold()
+    {
+        var guard = new QualityGuard(failureThreshold: 5);
+        string nodeId = "ns=2;s=ToolWear";
+
+        guard.ProcessGoodValue(nodeId, 0.12, DateTime.UtcNow);
+
+        for (int i = 1; i <= 4; i++)
+        {
+            var r = guard.ProcessFailure(nodeId, $"Fail {i}");
+            Assert.That(r.State, Is.EqualTo(QualityState.Uncertain));
+            Assert.That(r.Value, Is.EqualTo(0.12));
+        }
+
+        var r5 = guard.ProcessFailure(nodeId, "Fail 5");
+        Assert.That(r5.State, Is.EqualTo(QualityState.Bad));
+        Assert.That(r5.Value, Is.Null);
+    }
 }

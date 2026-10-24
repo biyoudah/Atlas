@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  fake-cnc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["dotnet", "/app/fakecnc/Opc.Ua.FakeCnc.dll", "-p", "62541"]
+    ports:
+      - "62541:62541"
+    restart: unless-stopped
+
+  atlas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: [
+      "serve",
+      "opc.tcp://fake-cnc:62541/FakeCncServer",
+      "--port", "9090",
+      "--machine", "cnc_mill_01",
+      "--pack", "siemens-s7-1500",
+      "--of-id", "OF-DEMO-01",
+      "--target-parts", "500",
+      "--target-cycle-time", "45.0"
+    ]
+    ports:
+      - "9090:9090"
+    depends_on:
+      - fake-cnc
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9091:9090"
+    depends_on:
+      - atlas
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped

@@ -142,6 +142,24 @@ public class PrometheusAndDashboardTests
     }
 
     [Test]
+    public void PrometheusExporter_LowCardinality_OmitsNodeIdLabel()
+    {
+        var catalog = CreateSampleCatalog();
+        var snapshot = new Dictionary<string, (CatalogEntry Entry, object? Value)>();
+        foreach (var entry in catalog.Entries)
+        {
+            if (entry.Inferred?.Label == "spindle_speed")
+            {
+                snapshot[entry.Id] = (entry, 8500.0);
+            }
+        }
+
+        string lowCardMetrics = PrometheusExporter.SerializeMetrics(snapshot, "cnc_01", includeNodeIdLabel: false);
+        Assert.That(lowCardMetrics, Does.Contain("opcua_spindle_speed_rpm{machine=\"cnc_01\"} 8500"));
+        Assert.That(lowCardMetrics, Does.Not.Contain("node_id="));
+    }
+
+    [Test]
     public void GrafanaDashboardGenerator_GeneratesValidV10Dashboard()
     {
         var catalog = CreateSampleCatalog();

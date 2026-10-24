@@ -103,4 +103,46 @@ public class OeeCalculatorTests
         Assert.That(output, Does.Contain("opcua_oee_availability_ratio{machine=\"line_01\",order_id=\"OF-TEST\",part_number=\"SKU-99\"}"));
         Assert.That(output, Does.Contain("opcua_work_order_completion_percent{machine=\"line_01\",order_id=\"OF-TEST\",part_number=\"SKU-99\"}"));
     }
+
+    [Test]
+    public void Calculate_BoundaryConditions_ZeroPartsAndZeroOperatingTime_DoesNotThrowAndYieldsZeroOee()
+    {
+        var calculator = new OeeCalculator();
+        var workOrder = new WorkOrderContext
+        {
+            OrderId = "OF-EMPTY",
+            TargetQuantity = 100,
+            NominalCycleTimeSeconds = 30.0,
+            PlannedProductionMinutes = 60.0
+        };
+
+        var snapshot = new Dictionary<string, (CatalogEntry Entry, object? Value)>();
+        var result = calculator.Calculate(workOrder, snapshot);
+
+        Assert.That(result.Availability, Is.EqualTo(0.0));
+        Assert.That(result.Performance, Is.EqualTo(0.0));
+        Assert.That(result.Quality, Is.EqualTo(1.0)); // No scrap produced
+        Assert.That(result.OeeOverall, Is.EqualTo(0.0));
+    }
+
+    [Test]
+    public void Calculate_WorkOrderTransition_ResetsOperatingTimeAccumulator()
+    {
+        var calculator = new OeeCalculator();
+        calculator.SetOperatingTimeSeconds(3600.0);
+
+        var of1 = new WorkOrderContext { OrderId = "OF-01", PlannedProductionMinutes = 60.0 };
+        var of2 = new WorkOrderContext { OrderId = "OF-02", PlannedProductionMinutes = 60.0 };
+
+        var snapshot = new Dictionary<string, (CatalogEntry Entry, object? Value)>();
+
+        // Step 1: Run with OF-01
+        var r1 = calculator.Calculate(of1, snapshot);
+        Assert.That(r1.OperatingTimeSeconds, Is.EqualTo(3600.0));
+
+        // Step 2: Switch to OF-02 -> Accumulator automatically resets
+        var r2 = calculator.Calculate(of2, snapshot);
+        Assert.That(r2.OrderId, Is.EqualTo("OF-02"));
+        Assert.That(r2.OperatingTimeSeconds, Is.EqualTo(0.0));
+    }
 }

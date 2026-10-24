@@ -11,21 +11,32 @@ namespace Opc.Ua.Atlas.Client;
 public static class AtlasClientHelper
 {
     /// <summary>
-    /// Creates a self-contained in-memory <see cref="ApplicationConfiguration"/> for the Atlas CLI tool.
+    /// Creates a self-contained <see cref="ApplicationConfiguration"/> for the Atlas CLI tool.
     /// </summary>
     public static async Task<ApplicationConfiguration> CreateClientConfigurationAsync(
         string applicationName = "Atlas",
-        bool autoAcceptUntrustedCertificates = true,
+        bool autoAcceptUntrustedCertificates = false,
+        string? pkiPath = null,
         ITelemetryContext? telemetry = null,
+        ILogger? logger = null,
         CancellationToken ct = default)
     {
-        string pkiRoot = Path.Combine(Path.GetTempPath(), "opcua_atlas_pki");
+        string pkiRoot = pkiPath ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".atlas",
+            "pki");
+
+        if (autoAcceptUntrustedCertificates)
+        {
+            logger?.LogWarning("[SECURITY NOTICE] Auto-accepting untrusted server certificates is enabled. This must not be used in production OT environments.");
+        }
+
         ITelemetryContext actualTelemetry = telemetry ?? DefaultTelemetry.Create(_ => { });
 
         var config = new ApplicationConfiguration(actualTelemetry)
         {
             ApplicationName = applicationName,
-            ApplicationUri = $"urn:localhost:OPCFoundation:{applicationName}",
+            ApplicationUri = $"urn:atlas:client:{applicationName.ToLowerInvariant()}",
             ApplicationType = ApplicationType.Client,
             SecurityConfiguration = new SecurityConfiguration
             {
@@ -33,7 +44,7 @@ public static class AtlasClientHelper
                 {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = Path.Combine(pkiRoot, "own"),
-                    SubjectName = $"CN={applicationName}, O=OPC Foundation"
+                    SubjectName = $"CN={applicationName}, O=Atlas Industrial Telemetry"
                 },
                 TrustedIssuerCertificates = new CertificateTrustList
                 {
@@ -78,6 +89,10 @@ public static class AtlasClientHelper
         string? username = null,
         string? password = null,
         bool useSecurity = false,
+        string? securityPolicyUri = null,
+        MessageSecurityMode? securityMode = null,
+        bool autoAcceptUntrustedCertificates = true,
+        string? pkiPath = null,
         int timeoutMs = 15000,
         ILogger? logger = null,
         CancellationToken ct = default)
@@ -87,8 +102,10 @@ public static class AtlasClientHelper
         ITelemetryContext telemetry = DefaultTelemetry.Create(_ => { });
         ApplicationConfiguration config = await CreateClientConfigurationAsync(
             applicationName: "Atlas",
-            autoAcceptUntrustedCertificates: true,
+            autoAcceptUntrustedCertificates: autoAcceptUntrustedCertificates,
+            pkiPath: pkiPath,
             telemetry: telemetry,
+            logger: logger,
             ct: ct).ConfigureAwait(false);
 
         IUserIdentity identity = string.IsNullOrEmpty(username)
@@ -108,6 +125,15 @@ public static class AtlasClientHelper
 
             if (selected != null)
             {
+                if (!string.IsNullOrEmpty(securityPolicyUri))
+                {
+                    selected.SecurityPolicyUri = securityPolicyUri;
+                }
+                if (securityMode.HasValue)
+                {
+                    selected.SecurityMode = securityMode.Value;
+                }
+
                 configuredEndpoint = new ConfiguredEndpoint(null, selected, EndpointConfiguration.Create(config));
             }
         }
@@ -124,7 +150,9 @@ public static class AtlasClientHelper
         }
         else
         {
-            builder.UseEndpoint(endpointUrl, MessageSecurityMode.None, SecurityPolicies.None);
+            string policy = securityPolicyUri ?? (useSecurity ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None);
+            MessageSecurityMode mode = securityMode ?? (useSecurity ? MessageSecurityMode.SignAndEncrypt : MessageSecurityMode.None);
+            builder.UseEndpoint(endpointUrl, mode, policy);
         }
 
         builder.WithSessionName($"Atlas_{Guid.NewGuid():N}")
