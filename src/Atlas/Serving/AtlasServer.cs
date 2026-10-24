@@ -219,7 +219,10 @@ public sealed class AtlasServer : IAsyncDisposable
                 context.Response.ContentType = "text/html; charset=utf-8";
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
                 context.Response.ContentLength64 = html.Length;
-                await context.Response.OutputStream.WriteAsync(html, ct).ConfigureAwait(false);
+                if (!string.Equals(context.Request.HttpMethod, "HEAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    await context.Response.OutputStream.WriteAsync(html, ct).ConfigureAwait(false);
+                }
                 context.Response.Close();
                 return;
             }
