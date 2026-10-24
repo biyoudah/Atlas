@@ -81,6 +81,8 @@ public static class Program
             SERVE OPTIONS:
               --port <port>                     HTTP/WebSocket listening port (default: 9090)
               --machine <name>                  Machine identifier tag for metrics (default: default_machine)
+              -d, --max-depth <depth>           Maximum browse recursion depth (default: 6)
+              -b, --batch-size <size>           Batch size for attribute reads (default: 200)
               --pack <fileOrName>               Mapping pack (e.g. siemens-s7-1500, fanuc-31i)
               --catalog <file.json>             Load pre-crawled catalog (offline simulation mode)
               --allow-write <nodeId>            Allowlist a node for remote writes (audit logged)
@@ -423,6 +425,9 @@ public static class Program
         double plannedMin = 480;
         int scrapParts = 0;
 
+        int maxDepth = 6;
+        int batchSize = 200;
+
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
@@ -430,6 +435,8 @@ public static class Program
             else if (arg is "--port" && i + 1 < args.Length) int.TryParse(args[++i], out port);
             else if (arg is "--machine" && i + 1 < args.Length) machine = args[++i];
             else if (arg is "--catalog" && i + 1 < args.Length) catalogFile = args[++i];
+            else if (arg is "-d" or "--max-depth" && i + 1 < args.Length) int.TryParse(args[++i], out maxDepth);
+            else if (arg is "-b" or "--batch-size" && i + 1 < args.Length) int.TryParse(args[++i], out batchSize);
             else if (arg is "-u" or "--user" && i + 1 < args.Length) user = args[++i];
             else if (arg is "-p" or "--password" && i + 1 < args.Length) password = args[++i];
             else if (arg is "--password-env" && i + 1 < args.Length) passwordEnv = args[++i];
@@ -450,6 +457,12 @@ public static class Program
         AtlasCatalog catalog;
         ManagedSession? session = null;
 
+        if (!string.IsNullOrEmpty(endpointUrl))
+        {
+            Console.Error.WriteLine($"Connecting to {endpointUrl}...");
+            session = await AtlasClientHelper.ConnectAsync(endpointUrl, user, resolvedPassword).ConfigureAwait(false);
+        }
+
         if (!string.IsNullOrEmpty(catalogFile))
         {
             if (!File.Exists(catalogFile))
@@ -460,12 +473,15 @@ public static class Program
             string json = await File.ReadAllTextAsync(catalogFile).ConfigureAwait(false);
             catalog = JsonSerializer.Deserialize<AtlasCatalog>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         }
-        else if (!string.IsNullOrEmpty(endpointUrl))
+        else if (session != null)
         {
-            Console.Error.WriteLine($"Connecting to {endpointUrl}...");
-            session = await AtlasClientHelper.ConnectAsync(endpointUrl, user, resolvedPassword).ConfigureAwait(false);
-            Console.Error.WriteLine("Connected. Performing initial discovery crawl...");
-            var crawler = new AtlasCrawler(session);
+            Console.Error.WriteLine($"Connected. Performing initial discovery crawl (max depth: {maxDepth})...");
+            var crawler = new AtlasCrawler(session, new CrawlerOptions
+            {
+                MaxDepth = maxDepth,
+                BatchSize = batchSize,
+                IdentityType = user ?? "Anonymous"
+            });
             catalog = await crawler.CrawlAsync().ConfigureAwait(false);
         }
         else
@@ -474,20 +490,21 @@ public static class Program
             return 1;
         }
 
-        // Apply mapping pack if requested
+        // Apply semantic labeling (Tier 1 umati standards + optional mapping packs)
+        UserMappingPack? loadedPack = null;
         if (!string.IsNullOrEmpty(packName))
         {
-            var pack = MappingPackLoader.ResolvePack(packName);
-            if (pack != null)
+            loadedPack = MappingPackLoader.ResolvePack(packName);
+            if (loadedPack != null)
             {
-                Console.Error.WriteLine($"Applying mapping pack '{pack.Name}' ({pack.Rules.Count} rules)...");
-                SemanticLabeler.LabelCatalog(catalog, mappingPack: pack);
+                Console.Error.WriteLine($"Applying mapping pack '{loadedPack.Name}' ({loadedPack.Rules.Count} rules)...");
             }
             else
             {
                 Console.Error.WriteLine($"Warning: Mapping pack '{packName}' could not be resolved.");
             }
         }
+        SemanticLabeler.LabelCatalog(catalog, mappingPack: loadedPack);
 
         // Optional MES Work Order Context
         Mes.WorkOrderContext? workOrder = null;
