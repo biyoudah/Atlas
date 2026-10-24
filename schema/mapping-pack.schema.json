@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/atlas-industrial/atlas/main/schema/mapping-pack.schema.json",
+  "title": "Atlas User Mapping Pack",
+  "description": "Validation schema for Atlas community and vendor mapping packs.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique identifier for the mapping pack (e.g. siemens-s7-1500, fanuc-31i)."
+    },
+    "vendor": {
+      "type": "string",
+      "description": "Controller manufacturer (e.g. Siemens, Fanuc, Mitsubishi, Beckhoff)."
+    },
+    "model": {
+      "type": "string",
+      "description": "Target CNC/PLC controller family or model line."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+.*$",
+      "description": "Semantic version of the pack (SemVer)."
+    },
+    "rules": {
+      "type": "array",
+      "description": "Ordered list of regex mapping rules evaluated against discovered tags.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Regular expression matched against NodeId, BrowseName, or BrowsePath."
+          },
+          "label": {
+            "type": "string",
+            "description": "Standardized semantic metric identifier (e.g. spindle_speed, parts_produced)."
+          },
+          "unit": {
+            "type": "string",
+            "description": "Engineering unit (e.g. rpm, bar, °C, mm/min, s, total)."
+          },
+          "scale": {
+            "type": "number",
+            "description": "Optional numeric multiplier to scale raw integer registers (e.g. 0.01 for centi-degrees)."
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable explanation of the tag's operational meaning."
+          },
+          "category": {
+            "type": "string",
+            "enum": ["Sample", "Event", "Condition"],
+            "description": "ANSI/MTConnect taxonomy category."
+          }
+        },
+        "required": ["pattern", "label"]
+      }
+    }
+  },
+  "required": ["name", "rules"]
+}

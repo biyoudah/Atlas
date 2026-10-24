@@ -7,9 +7,9 @@ WORKDIR /src
 
 # Copy project files for caching restore layer
 COPY Atlas.slnx Directory.Build.props ./
-COPY src/Opc.Ua.Atlas/Opc.Ua.Atlas.csproj src/Opc.Ua.Atlas/
-COPY simulation/Opc.Ua.FakeCnc/Opc.Ua.FakeCnc.csproj simulation/Opc.Ua.FakeCnc/
-COPY tests/Opc.Ua.Atlas.Tests/Opc.Ua.Atlas.Tests.csproj tests/Opc.Ua.Atlas.Tests/
+COPY src/Atlas/Atlas.csproj src/Atlas/
+COPY simulation/Atlas.FakeCnc/Atlas.FakeCnc.csproj simulation/Atlas.FakeCnc/
+COPY tests/Atlas.Tests/Atlas.Tests.csproj tests/Atlas.Tests/
 
 RUN dotnet restore Atlas.slnx
 
@@ -18,8 +18,8 @@ COPY . .
 RUN dotnet build Atlas.slnx -c Release --no-restore
 
 # Publish Atlas CLI & Fake CNC server
-RUN dotnet publish src/Opc.Ua.Atlas/Opc.Ua.Atlas.csproj -c Release -o /app/atlas --no-build
-RUN dotnet publish simulation/Opc.Ua.FakeCnc/Opc.Ua.FakeCnc.csproj -c Release -o /app/fakecnc --no-build
+RUN dotnet publish src/Atlas/Atlas.csproj -c Release -o /app/atlas --no-build
+RUN dotnet publish simulation/Atlas.FakeCnc/Atlas.FakeCnc.csproj -c Release -o /app/fakecnc --no-build
 
 # ==============================================================================
 # Runtime Stage
@@ -40,5 +40,5 @@ EXPOSE 9090
 EXPOSE 62541
 
 WORKDIR /app/atlas
-ENTRYPOINT ["dotnet", "Opc.Ua.Atlas.dll"]
+ENTRYPOINT ["dotnet", "Atlas.dll"]
 CMD ["serve", "opc.tcp://fake-cnc:62541/FakeCncServer", "--port", "9090", "--machine", "cnc_mill_01", "--pack", "siemens-s7-1500"]

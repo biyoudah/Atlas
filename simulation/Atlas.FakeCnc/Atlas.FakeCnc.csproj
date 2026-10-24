@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Atlas.FakeCnc</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <PackageId>Atlas.FakeCnc</PackageId>
+    <Description>Realistic 5-Axis CNC Machining Center OPC UA Simulation Server for testing, discovery, profiling, and dashboards.</Description>
+    <RootNamespace>Atlas.FakeCnc</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Server" Version="2.0.1" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Configuration" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Opc.Ua" />
+    <Using Include="Opc.Ua.Range" Alias="Range" />
+  </ItemGroup>
+</Project>
