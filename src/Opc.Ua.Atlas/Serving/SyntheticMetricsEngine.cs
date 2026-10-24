@@ -15,10 +15,10 @@ public record SyntheticMetric(
     SignalCategory Category = SignalCategory.Sample);
 
 /// <summary>
-/// Logistics & Physics-informed Synthetic Metrics Engine:
-/// 1. Time-to-starvation: Pallet stock × cycle time (warns forklift / AGV operators before machine starves).
-/// 2. Spindle thermal drift: Thermal equilibrium difference (spindle temp - ambient / reference).
-/// 3. Tool wear urgency: Current tool wear offset or consumption vs threshold.
+/// Operational & logistics synthetic telemetry engine:
+/// 1. Time-to-starvation: Pallet stock × cycle time (buffer depletion horizon).
+/// 2. Spindle thermal delta: Temperature difference relative to ambient reference baseline (ΔT = T_spindle - T_ref).
+/// 3. Tool wear ratio: Tool wear offset or lifetime consumption percentage.
 /// </summary>
 public sealed class SyntheticMetricsEngine
 {
@@ -78,7 +78,7 @@ public sealed class SyntheticMetricsEngine
             }
         }
 
-        // 1. Spindle Thermal Drift: Spindle Temp - Ambient Temp
+        // 1. Spindle Thermal Delta: Spindle Temp - Ambient Temp
         if (spindleTemp.HasValue)
         {
             double refTemp = ambientTemp ?? DefaultAmbientTemperatureCelsius;
@@ -90,7 +90,7 @@ public sealed class SyntheticMetricsEngine
                 MetricName: "opcua_spindle_thermal_drift_celsius",
                 Value: drift,
                 Unit: "°C",
-                Description: "Spindle thermal elongation drift relative to ambient baseline.",
+                Description: "Spindle temperature delta relative to ambient reference baseline.",
                 Category: SignalCategory.Sample));
         }
 

@@ -30,6 +30,7 @@ public sealed class AtlasServer : IAsyncDisposable
     public WebSocketGateway Gateway => _gateway;
     public SubscriptionMultiplexer Multiplexer => _multiplexer;
     public bool IsListening => _listener.IsListening;
+    public bool IncludeNodeIdInMetrics { get; set; } = true;
     public Mes.WorkOrderContext? WorkOrder { get; set; }
     public Mes.OeeCalculator OeeCalculator { get; } = new();
 
@@ -137,7 +138,8 @@ public sealed class AtlasServer : IAsyncDisposable
                     _multiplexer.QualityGuard,
                     _multiplexer.SyntheticEngine,
                     oee,
-                    diag);
+                    diag,
+                    includeNodeIdLabel: IncludeNodeIdInMetrics);
                 byte[] bytes = Encoding.UTF8.GetBytes(metrics);
 
                 context.Response.ContentType = "text/plain; version=0.0.4; charset=utf-8";

@@ -52,6 +52,7 @@ public class CollectorDiagnosticsTests
             machineName: "lathe_03",
             diagnostics: diag);
 
+        Assert.That(output, Does.Contain("# TYPE atlas_collector_uptime_seconds gauge"));
         Assert.That(output, Does.Contain("atlas_collector_uptime_seconds{machine=\"lathe_03\"} 3600.5"));
         Assert.That(output, Does.Contain("atlas_collector_scrape_latency_seconds{machine=\"lathe_03\"} 0.0124"));
         Assert.That(output, Does.Contain("atlas_collector_read_errors_total{machine=\"lathe_03\"} 4"));

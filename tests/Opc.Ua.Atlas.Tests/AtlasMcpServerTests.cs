@@ -157,4 +157,52 @@ public class AtlasMcpServerTests
         Assert.That(text, Does.Contain("PMC_D100"));
         Assert.That(text, Does.Contain("spindle_speed"));
     }
+
+    [Test]
+    public async Task McpServer_RejectsUnknownTools_OrWriteAttempts()
+    {
+        var catalog = CreateTestCatalog();
+        var multiplexer = new SubscriptionMultiplexer(catalog);
+
+        var input = new StringReader("""
+            {"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"write_node_value","arguments":{"nodeId":"ns=2;s=SpindleSpeed","value":12000}}}
+            """);
+
+        var output = new StringWriter();
+        var server = new AtlasMcpServer(catalog, multiplexer, input, output);
+
+        await server.RunAsync();
+
+        string line = output.ToString().Trim();
+        var resp = JsonNode.Parse(line);
+        Assert.That(resp?["id"]?.GetValue<int>(), Is.EqualTo(40));
+        Assert.That(resp?["result"]?["isError"]?.GetValue<bool>(), Is.True);
+        string err = resp?["result"]?["content"]?[0]?["text"]?.GetValue<string>() ?? "";
+        Assert.That(err, Does.Contain("Unknown tool"));
+    }
+
+    [Test]
+    public async Task McpServer_ExecutesGetMachineHealthTool()
+    {
+        var catalog = CreateTestCatalog();
+        var multiplexer = new SubscriptionMultiplexer(catalog);
+        multiplexer.UpdateValue("ns=2;s=EmergencyStop", false);
+
+        var input = new StringReader("""
+            {"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"get_machine_health","arguments":{}}}
+            """);
+
+        var output = new StringWriter();
+        var server = new AtlasMcpServer(catalog, multiplexer, input, output);
+
+        await server.RunAsync();
+
+        string line = output.ToString().Trim();
+        var resp = JsonNode.Parse(line);
+        Assert.That(resp?["id"]?.GetValue<int>(), Is.EqualTo(50));
+        string text = resp?["result"]?["content"]?[0]?["text"]?.GetValue<string>() ?? "";
+        Assert.That(text, Does.Contain("gateway"));
+        Assert.That(text, Does.Contain("catalog"));
+        Assert.That(text, Does.Contain("activeConditions"));
+    }
 }

@@ -52,17 +52,24 @@ public sealed class OeeResult
 }
 
 /// <summary>
-/// Reconciles live OT telemetry with MES work orders to calculate real-time OEE / TRS:
-/// - Availability: Operating Time / Planned Production Time
-/// - Performance: (Total Parts × Nominal Cycle Time) / Operating Time
-/// - Quality: Good Parts / Total Parts
-/// - OEE: Availability × Performance × Quality
+/// Reconciles live OT telemetry with MES work orders to calculate real-time OEE / TRS
+/// in conformance with ISO 22400-2:2014 (Section 7.3 - Overall Equipment Effectiveness):
+/// - Availability (A) = Operating Time / Planned Production Time (Net of planned breaks)
+/// - Performance (P) = (Total Quantity Produced × Nominal Cycle Time) / Operating Time
+/// - Quality (Q) = Good Quantity / Total Quantity Produced
+/// - Overall OEE = A × P × Q
+///
+/// Handles boundary conditions:
+/// - Division-by-zero protection on zero operating time or zero produced parts.
+/// - OF transitions: automatically resets runtime accumulator upon encountering a new OrderId.
+/// - Operator scrap entry anomalies (Scrap > Total) safely clamped to 0 Good parts.
 /// </summary>
 public sealed class OeeCalculator
 {
     private DateTime _lastEvaluationTime = DateTime.UtcNow;
     private double _accumulatedOperatingTimeSeconds = 0;
     private bool _isCurrentlyRunning = false;
+    private string? _activeOrderId;
 
     /// <summary>
     /// Updates the machine running state accumulator.
@@ -94,8 +101,16 @@ public sealed class OeeCalculator
         ArgumentNullException.ThrowIfNull(workOrder);
         DateTime now = nowUtc ?? DateTime.UtcNow;
 
+        // Reset runtime accumulator if work order changed
+        if (_activeOrderId != null && !string.Equals(_activeOrderId, workOrder.OrderId, StringComparison.OrdinalIgnoreCase))
+        {
+            _accumulatedOperatingTimeSeconds = 0;
+            _lastEvaluationTime = now;
+        }
+        _activeOrderId = workOrder.OrderId;
+
         int totalParts = 0;
-        int scrapParts = workOrder.DeclaredScrapParts;
+        int scrapParts = Math.Max(0, workOrder.DeclaredScrapParts);
 
         // Extract parts count and machine state from snapshot
         foreach (var (_, (entry, val)) in snapshot)
@@ -135,24 +150,26 @@ public sealed class OeeCalculator
 
         int goodParts = Math.Max(0, totalParts - scrapParts);
 
-        // Availability calculation
-        double plannedSeconds = Math.Max(1.0, (workOrder.PlannedProductionMinutes - workOrder.PlannedDowntimeMinutes) * 60.0);
-        double operatingSeconds = Math.Max(1.0, _accumulatedOperatingTimeSeconds);
-        // Cap operating seconds to planned if elapsed
-        double availability = Math.Min(1.0, Math.Max(0.0, operatingSeconds / plannedSeconds));
+        // Availability calculation (ISO 22400-2): Actual Execution Time / Planned Production Time
+        double netPlannedMinutes = Math.Max(1.0, workOrder.PlannedProductionMinutes - workOrder.PlannedDowntimeMinutes);
+        double plannedSeconds = netPlannedMinutes * 60.0;
+        double operatingSeconds = Math.Max(0.0, _accumulatedOperatingTimeSeconds);
+        double availability = plannedSeconds > 0
+            ? Math.Min(1.0, Math.Max(0.0, operatingSeconds / plannedSeconds))
+            : 0.0;
 
-        // Performance calculation: (Actual Parts * Nominal Cycle Time) / Operating Time
+        // Performance calculation (ISO 22400-2): (Actual Parts * Nominal Cycle Time) / Operating Time
         double idealOperatingTimeForProducedParts = totalParts * workOrder.NominalCycleTimeSeconds;
         double performance = operatingSeconds > 0
             ? Math.Min(1.0, Math.Max(0.0, idealOperatingTimeForProducedParts / operatingSeconds))
             : 0.0;
 
-        // Quality calculation: Good Parts / Total Parts
+        // Quality calculation (ISO 22400-2): Good Parts / Total Parts
         double quality = totalParts > 0
             ? Math.Min(1.0, Math.Max(0.0, (double)goodParts / totalParts))
             : 1.0;
 
-        // Overall OEE
+        // Overall OEE (ISO 22400-2)
         double oee = Math.Round(availability * performance * quality, 4);
 
         // Completion & ETA

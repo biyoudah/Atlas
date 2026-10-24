@@ -117,6 +117,8 @@ public static class Program
         string endpointUrl = args[0];
         string? user = null;
         string? password = null;
+        string? passwordEnv = null;
+        string? passwordFile = null;
         string format = "json";
         string? outputFile = null;
         string? packName = null;
@@ -130,6 +132,8 @@ public static class Program
             string opt = args[i];
             if (opt is "-u" or "--user" && i + 1 < args.Length) user = args[++i];
             else if (opt is "-p" or "--password" && i + 1 < args.Length) password = args[++i];
+            else if (opt is "--password-env" && i + 1 < args.Length) passwordEnv = args[++i];
+            else if (opt is "--password-file" && i + 1 < args.Length) passwordFile = args[++i];
             else if (opt is "-f" or "--format" && i + 1 < args.Length) format = args[++i].ToLowerInvariant();
             else if (opt is "-o" or "--output" && i + 1 < args.Length) outputFile = args[++i];
             else if (opt is "-d" or "--max-depth" && i + 1 < args.Length) int.TryParse(args[++i], out maxDepth);
@@ -139,9 +143,11 @@ public static class Program
             else if (opt is "--include-diagnostics") includeDiagnostics = true;
         }
 
+        string? resolvedPassword = ResolvePassword(password, passwordEnv, passwordFile);
+
         Console.Error.WriteLine($"Connecting to {endpointUrl} (User: {user ?? "Anonymous"})...");
         await using ManagedSession session = await AtlasClientHelper.ConnectAsync(
-            endpointUrl, user, password).ConfigureAwait(false);
+            endpointUrl, user, resolvedPassword).ConfigureAwait(false);
 
         Console.Error.WriteLine("Connected. Starting address space crawl...");
         var crawler = new AtlasCrawler(session, new CrawlerOptions
@@ -258,6 +264,8 @@ public static class Program
         string endpointUrl = args[0];
         string? targetUser = null;
         string? targetPassword = null;
+        string? targetPasswordEnv = null;
+        string? targetPasswordFile = null;
         string format = "markdown";
         string? outputFile = null;
 
@@ -266,9 +274,13 @@ public static class Program
             string opt = args[i];
             if (opt is "--target-user" && i + 1 < args.Length) targetUser = args[++i];
             else if (opt is "--target-password" && i + 1 < args.Length) targetPassword = args[++i];
+            else if (opt is "--target-password-env" && i + 1 < args.Length) targetPasswordEnv = args[++i];
+            else if (opt is "--target-password-file" && i + 1 < args.Length) targetPasswordFile = args[++i];
             else if (opt is "-f" or "--format" && i + 1 < args.Length) format = args[++i].ToLowerInvariant();
             else if (opt is "-o" or "--output" && i + 1 < args.Length) outputFile = args[++i];
         }
+
+        string? resolvedTargetPassword = ResolvePassword(targetPassword, targetPasswordEnv, targetPasswordFile);
 
         Console.Error.WriteLine($"Step 1/2: Crawling anonymously from {endpointUrl}...");
         await using ManagedSession anonSession = await AtlasClientHelper.ConnectAsync(
@@ -278,7 +290,7 @@ public static class Program
 
         Console.Error.WriteLine($"Step 2/2: Crawling as '{targetUser ?? "Target"}' from {endpointUrl}...");
         await using ManagedSession authSession = await AtlasClientHelper.ConnectAsync(
-            endpointUrl, targetUser, targetPassword).ConfigureAwait(false);
+            endpointUrl, targetUser, resolvedTargetPassword).ConfigureAwait(false);
         var authCrawler = new AtlasCrawler(authSession, new CrawlerOptions { IdentityType = targetUser ?? "Target" });
         AtlasCatalog authCatalog = await authCrawler.CrawlAsync().ConfigureAwait(false);
 
@@ -398,8 +410,11 @@ public static class Program
         string? endpointUrl = null;
         string? user = null;
         string? password = null;
+        string? passwordEnv = null;
+        string? passwordFile = null;
         string? packName = null;
         var allowList = new List<string>();
+        bool lowCardinality = false;
 
         string? ofId = null;
         string? partNumber = null;
@@ -417,6 +432,9 @@ public static class Program
             else if (arg is "--catalog" && i + 1 < args.Length) catalogFile = args[++i];
             else if (arg is "-u" or "--user" && i + 1 < args.Length) user = args[++i];
             else if (arg is "-p" or "--password" && i + 1 < args.Length) password = args[++i];
+            else if (arg is "--password-env" && i + 1 < args.Length) passwordEnv = args[++i];
+            else if (arg is "--password-file" && i + 1 < args.Length) passwordFile = args[++i];
+            else if (arg is "--low-cardinality" or "--omit-node-id") lowCardinality = true;
             else if (arg is "--pack" && i + 1 < args.Length) packName = args[++i];
             else if (arg is "--allow-write" && i + 1 < args.Length) allowList.Add(args[++i]);
             else if (arg is "--of-id" && i + 1 < args.Length) ofId = args[++i];
@@ -426,6 +444,8 @@ public static class Program
             else if (arg is "--planned-minutes" && i + 1 < args.Length) double.TryParse(args[++i], System.Globalization.CultureInfo.InvariantCulture, out plannedMin);
             else if (arg is "--scrap-parts" && i + 1 < args.Length) int.TryParse(args[++i], out scrapParts);
         }
+
+        string? resolvedPassword = ResolvePassword(password, passwordEnv, passwordFile);
 
         AtlasCatalog catalog;
         ManagedSession? session = null;
@@ -443,7 +463,7 @@ public static class Program
         else if (!string.IsNullOrEmpty(endpointUrl))
         {
             Console.Error.WriteLine($"Connecting to {endpointUrl}...");
-            session = await AtlasClientHelper.ConnectAsync(endpointUrl, user, password).ConfigureAwait(false);
+            session = await AtlasClientHelper.ConnectAsync(endpointUrl, user, resolvedPassword).ConfigureAwait(false);
             Console.Error.WriteLine("Connected. Performing initial discovery crawl...");
             var crawler = new AtlasCrawler(session);
             catalog = await crawler.CrawlAsync().ConfigureAwait(false);
@@ -489,6 +509,7 @@ public static class Program
         await multiplexer.StartAutoMonitoringAsync().ConfigureAwait(false);
         string prefix = $"http://localhost:{port}/";
         await using var server = new AtlasServer(catalog, multiplexer, prefix, machine, workOrder: workOrder);
+        server.IncludeNodeIdInMetrics = !lowCardinality;
 
         server.Start();
 
@@ -589,5 +610,34 @@ public static class Program
         var mcpServer = new Mcp.AtlasMcpServer(catalog, multiplexer);
         await mcpServer.RunAsync().ConfigureAwait(false);
         return 0;
+    }
+
+    /// <summary>
+    /// Resolves OPC UA credentials safely from file, environment variable, or CLI fallback.
+    /// Emits a warning when plaintext password is passed via CLI argument.
+    /// </summary>
+    public static string? ResolvePassword(string? cliPassword, string? passwordEnv = null, string? passwordFile = null)
+    {
+        if (!string.IsNullOrEmpty(passwordFile) && File.Exists(passwordFile))
+        {
+            return File.ReadAllText(passwordFile).TrimEnd('\r', '\n');
+        }
+
+        string envName = string.IsNullOrEmpty(passwordEnv) ? "OPC_UA_PASSWORD" : passwordEnv;
+        string? fromEnv = Environment.GetEnvironmentVariable(envName);
+        if (!string.IsNullOrEmpty(fromEnv))
+        {
+            return fromEnv;
+        }
+
+        if (!string.IsNullOrEmpty(cliPassword))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Error.WriteLine("[SECURITY NOTICE] Passing credentials via '-p/--password' CLI flag exposes them in the OS process table (e.g. ps -ef). Prefer OPC_UA_PASSWORD env var or '--password-file'.");
+            Console.ResetColor();
+            return cliPassword;
+        }
+
+        return null;
     }
 }
