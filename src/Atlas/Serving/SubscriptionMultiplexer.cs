@@ -17,6 +17,7 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
     private readonly AtlasCatalog _catalog;
     private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, (CatalogEntry Entry, object? Value, DateTime Timestamp)> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, CanonicalSignal> _signals = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, HashSet<string>> _nodeSubscribers = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _writeAllowlist = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _subLock = new(1, 1);
@@ -105,11 +106,33 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
     }
 
     /// <summary>
+    /// Gets a thread-safe snapshot of all canonical signals with full fidelity metadata.
+    /// </summary>
+    public IReadOnlyDictionary<string, CanonicalSignal> GetCanonicalSignals()
+    {
+        return new Dictionary<string, CanonicalSignal>(_signals, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Gets a specific canonical signal by NodeId or BrowseName.
+    /// </summary>
+    public CanonicalSignal? GetCanonicalSignal(string nodeIdOrUri)
+    {
+        return _signals.TryGetValue(nodeIdOrUri, out var sig) ? sig : null;
+    }
+
+    /// <summary>
     /// Updates a cached node value manually (used in simulations or batch reads).
     /// </summary>
-    public void UpdateValue(string nodeIdOrUri, object? value, DateTime? timestamp = null)
+    public void UpdateValue(
+        string nodeIdOrUri,
+        object? value,
+        DateTime? timestamp = null,
+        DateTime? serverTimestamp = null,
+        StatusCode? statusCode = null)
     {
         DateTime ts = timestamp ?? DateTime.UtcNow;
+        DateTime srvTs = serverTimestamp ?? ts;
         CatalogEntry? entry = null;
 
         if (_cache.TryGetValue(nodeIdOrUri, out var existing))
@@ -145,6 +168,45 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
         object? finalValue = record.Value;
 
         _cache[nodeIdOrUri] = (entry, finalValue, ts);
+
+        double? numVal = null;
+        if (QualityGuard.TryConvertToDouble(finalValue, out double dVal))
+        {
+            numVal = dVal;
+        }
+
+        string? rawStateStr = finalValue?.ToString();
+        string? stdState = null;
+        if (entry.Inferred?.Label is "machine_state" or "operating_mode")
+        {
+            stdState = Standard.MachineToolStandards.ParseStandardState(finalValue).ToString();
+        }
+
+        var canonical = new CanonicalSignal
+        {
+            NodeId = entry.Id,
+            StableNodeId = entry.Id,
+            RawValue = finalValue,
+            NumericValue = numVal,
+            DataType = entry.DataType,
+            StatusCode = statusCode?.Code ?? StatusCodes.Good.Code,
+            Quality = record.State,
+            SourceTimestampUtc = ts,
+            ServerTimestampUtc = srvTs,
+            ReceivedTimestampUtc = DateTime.UtcNow,
+            IsStale = record.IsStale,
+            SamplingIntervalMs = entry.MinimumSamplingInterval ?? 250.0,
+            SemanticLabel = entry.Inferred?.Label,
+            Unit = entry.Unit,
+            Provenance = entry.Inferred?.Provenance ?? SignalProvenance.HeuristicInference,
+            Confidence = entry.Inferred?.Confidence ?? 0.0,
+            Category = entry.Category,
+            RawState = rawStateStr,
+            StandardizedState = stdState,
+            Entry = entry
+        };
+
+        _signals[nodeIdOrUri] = canonical;
         OnValueChanged?.Invoke(nodeIdOrUri, entry, finalValue, ts);
     }
 
@@ -359,8 +421,9 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
                         if (e.NotificationValue is MonitoredItemNotification min)
                         {
                             object? val = min.Value.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-                            DateTime ts = (DateTime)min.Value.SourceTimestamp;
-                            UpdateValue(nodeIdStr, val, ts);
+                            DateTime srcTs = (DateTime)min.Value.SourceTimestamp;
+                            DateTime srvTs = (DateTime)min.Value.ServerTimestamp;
+                            UpdateValue(nodeIdStr, val, srcTs, srvTs, min.Value.StatusCode);
                         }
                     };
 
@@ -432,8 +495,9 @@ public sealed class SubscriptionMultiplexer : IAsyncDisposable
                         if (StatusCode.IsGood(res.StatusCode))
                         {
                             object? val = res.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-                            DateTime ts = (DateTime)res.SourceTimestamp;
-                            UpdateValue(idStr, val, ts);
+                            DateTime srcTs = (DateTime)res.SourceTimestamp;
+                            DateTime srvTs = (DateTime)res.ServerTimestamp;
+                            UpdateValue(idStr, val, srcTs, srvTs, res.StatusCode);
                         }
                         else
                         {

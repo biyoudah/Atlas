@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["dotnet", "/app/fakecnc/Atlas.FakeCnc.dll", "-p", "62541"]
+    command: ["dotnet", "/app/fakecnc/Atlas.FakeCnc.dll", "-p", "62541", "--scenario", "NormalProduction", "--seed", "42"]
     ports:
       - "62541:62541"
     restart: unless-stopped
@@ -15,6 +15,13 @@ services:
     image: open62541/open62541:latest
     ports:
       - "4840:4840"
+    restart: unless-stopped
+
+  # Official umati Machine Tool reference server (OPC 40501 MachineTool / OPC 40001 Machinery)
+  umati:
+    image: ghcr.io/umati/sample-server:latest
+    ports:
+      - "4841:4840"
     restart: unless-stopped
 
   atlas:

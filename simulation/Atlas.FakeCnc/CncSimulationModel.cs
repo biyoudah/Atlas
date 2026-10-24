@@ -1,16 +1,22 @@
 namespace Atlas.FakeCnc;
 
 /// <summary>
-/// High-fidelity physics and process model for a 5-axis CNC machining center.
-/// Simulates real-time spindle kinetics, cutting load variations, multi-axis interpolation,
-/// and automated workpiece cycle counting.
+/// Deterministic physics and scenario execution model for CNC machining centers.
+/// Simulates real-time spindle kinetics, cutting load variations, multi-axis kinematics,
+/// and reproducible telemetry scenarios (Normal, CounterReset, QualityFault, Disruption, NetworkInterruption).
 /// </summary>
 public class CncSimulationModel
 {
     private readonly object m_lock = new();
-    private readonly Random m_random = new(42);
+    private readonly Random m_random;
     private double m_elapsedTimeSeconds;
     private double m_cycleTimer;
+
+    // Deterministic Scenario Configuration
+    public SimulationScenario Scenario { get; set; } = SimulationScenario.NormalProduction;
+    public long TickCount { get; private set; }
+    public StatusCode SpindleStatusCode { get; private set; } = StatusCodes.Good;
+    public bool SimulateNetworkDrop { get; set; }
 
     // Identification
     public string Manufacturer { get; set; } = "DMG MORI / Fanuc";
@@ -87,19 +93,71 @@ public class CncSimulationModel
     public string MotorDriveFirmwareKey { get; set; } = "SEC-DRV-FIRMWARE-V9-HASH884B";
     public double DriveDCBusVoltage { get; private set; } = 565.4; // V
 
-    public CncSimulationModel()
+    public CncSimulationModel(int seed = 42, SimulationScenario scenario = SimulationScenario.NormalProduction)
     {
+        m_random = new Random(seed);
+        Scenario = scenario;
         m_cycleTimer = NominalCycleTime;
         PartCycleTimeRemaining = NominalCycleTime;
     }
 
     /// <summary>
-    /// Advances machine physics, toolpath interpolation, and cycle progress by delta seconds.
+    /// Advances machine physics and scenario event timeline deterministically.
     /// </summary>
     public void Tick(double deltaSeconds)
     {
         lock (m_lock)
         {
+            TickCount++;
+
+            // ================================================================
+            // Deterministic Scenario Injections
+            // ================================================================
+            switch (Scenario)
+            {
+                case SimulationScenario.CounterReset:
+                    // At tick 5, simulate operator shift change or M30 reset
+                    if (TickCount == 5)
+                    {
+                        PartsProduced = 0;
+                        GoodParts = 0;
+                        DefectiveParts = 0;
+                    }
+                    break;
+
+                case SimulationScenario.QualityFault:
+                    // At tick >= 3, sensor fails with bad status code and out-of-range thermal reading
+                    if (TickCount >= 3)
+                    {
+                        SpindleStatusCode = StatusCodes.BadSensorFailure;
+                        SpindleTemperature = 125.0; // Exceeds EURange high (100°C)
+                        VibrationRMS = 28.5; // High threshold trip
+                    }
+                    break;
+
+                case SimulationScenario.ProductionDisruption:
+                    // At tick >= 4, tool breakage alarm triggers emergency stop / feed hold
+                    if (TickCount >= 4)
+                    {
+                        ExecutionState = "INTERRUPTED";
+                        FeedHold = true;
+                        ActiveAlarmsCount = 3;
+                        ToolLifeRemaining = 0.0;
+                        VibrationRMS = 14.8;
+                    }
+                    break;
+
+                case SimulationScenario.NetworkInterruption:
+                    // Simulate frozen socket between tick 3 and 7
+                    if (TickCount is >= 3 and <= 7)
+                    {
+                        SimulateNetworkDrop = true;
+                        return; // Freeze state updates
+                    }
+                    SimulateNetworkDrop = false;
+                    break;
+            }
+
             m_elapsedTimeSeconds += deltaSeconds;
             TotalOperatingHours += deltaSeconds / 3600.0;
 
@@ -133,25 +191,22 @@ public class CncSimulationModel
 
                 // --- 2. Spindle Kinetics ---
                 double targetRpm = CommandedSpeed * (SpindleOverride / 100.0);
-                // Ramp smoothly toward target RPM
                 ActualSpeed += (targetRpm - ActualSpeed) * Math.Min(1.0, deltaSeconds * 2.0);
 
-                // Add small realistic sinusoidal & stochastic vibration jitter (+/- 12 RPM)
                 double rpmJitter = (Math.Sin(m_elapsedTimeSeconds * 4.2) * 8.0) + ((m_random.NextDouble() - 0.5) * 5.0);
                 ActualSpeed = Math.Round(Math.Max(0.0, ActualSpeed + rpmJitter), 1);
 
-                // Dynamic cutting load (fluctuates between 42% and 68% during contour pass)
                 double loadPattern = 50.0 + (12.0 * Math.Sin(m_elapsedTimeSeconds * 1.8)) + ((m_random.NextDouble() - 0.5) * 4.0);
                 SpindleLoad = Math.Round(Math.Clamp(loadPattern, 5.0, 95.0), 1);
 
-                // Spindle thermal equilibrium (~41.5 °C under load)
-                SpindleTemperature += (41.5 - SpindleTemperature) * 0.001 * deltaSeconds;
-                SpindleTemperature = Math.Round(SpindleTemperature, 2);
+                if (Scenario != SimulationScenario.QualityFault)
+                {
+                    SpindleTemperature += (41.5 - SpindleTemperature) * 0.001 * deltaSeconds;
+                    SpindleTemperature = Math.Round(SpindleTemperature, 2);
+                    VibrationRMS = Math.Round(1.2 + (SpindleLoad / 40.0) + ((m_random.NextDouble() - 0.5) * 0.2), 2);
+                }
 
-                // Vibration RMS correlated with load
-                VibrationRMS = Math.Round(1.2 + (SpindleLoad / 40.0) + ((m_random.NextDouble() - 0.5) * 0.2), 2);
-
-                // --- 3. Axes Toolpath Interpolation (Helical Contour Milling) ---
+                // --- 3. Axes Toolpath Interpolation ---
                 double radius = 120.0; // mm
                 double omega = 0.5; // rad/s
                 double nominalFeed = 2800.0 * (FeedRateOverride / 100.0);
@@ -162,7 +217,6 @@ public class CncSimulationModel
                 double depthProgress = (NominalCycleTime - m_cycleTimer) / NominalCycleTime;
                 Z_CommandedPosition = Math.Round(-5.0 - (depthProgress * 25.0), 3);
 
-                // Actual positions lag slightly with servo following error (< 0.004 mm)
                 X_ActualPosition = Math.Round(X_CommandedPosition + ((m_random.NextDouble() - 0.5) * 0.003), 3);
                 Y_ActualPosition = Math.Round(Y_CommandedPosition + ((m_random.NextDouble() - 0.5) * 0.003), 3);
                 Z_ActualPosition = Math.Round(Z_CommandedPosition + ((m_random.NextDouble() - 0.5) * 0.002), 3);
@@ -186,7 +240,10 @@ public class CncSimulationModel
                 ActualFeedRate = 0.0;
                 CoolantFlow = false;
                 CoolantPressure = 0.0;
-                VibrationRMS = 0.05;
+                if (Scenario != SimulationScenario.QualityFault && Scenario != SimulationScenario.ProductionDisruption)
+                {
+                    VibrationRMS = 0.05;
+                }
                 SpindleTemperature += (23.0 - SpindleTemperature) * 0.001 * deltaSeconds;
             }
 

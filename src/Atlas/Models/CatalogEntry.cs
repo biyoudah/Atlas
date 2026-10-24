@@ -18,12 +18,31 @@ public record EURangeInfo(
     [property: JsonPropertyName("high")] double High);
 
 /// <summary>
-/// Inferred semantic meaning with evidence and confidence score.
+/// Source origin and trust tier of a semantic signal mapping.
+/// Tier 1: StandardCompanionSpec (OPC 40501 MachineTool / OPC 40001 Machinery / umati).
+/// Tier 2: VendorMappingPack (Siemens S7, Fanuc, Mitsubishi vendor rules).
+/// Tier 3: CustomRule (User-defined explicit pack rules).
+/// Tier 4: HeuristicInference (Multi-factor heuristic scoring: units, EURange, browse patterns).
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum SignalProvenance
+{
+    StandardCompanionSpec,
+    VendorMappingPack,
+    CustomRule,
+    HeuristicInference
+}
+
+/// <summary>
+/// Inferred semantic meaning with evidence, confidence score, provenance tier, and multi-state fidelity.
 /// </summary>
 public record InferredSemantics(
     [property: JsonPropertyName("label")] string Label,
     [property: JsonPropertyName("confidence")] double Confidence,
-    [property: JsonPropertyName("evidence")] IReadOnlyList<string> Evidence);
+    [property: JsonPropertyName("evidence")] IReadOnlyList<string> Evidence,
+    [property: JsonPropertyName("provenance")] SignalProvenance Provenance = SignalProvenance.HeuristicInference,
+    [property: JsonPropertyName("standardizedState")] string? StandardizedState = null,
+    [property: JsonPropertyName("rawState")] string? RawState = null);
 
 /// <summary>
 /// MTConnect / ANSI-standard signal classification.

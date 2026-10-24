@@ -126,22 +126,15 @@ public sealed class OeeCalculator
                     totalParts = parts;
                 }
             }
-            else if (label.Equals("machine_state", StringComparison.OrdinalIgnoreCase))
+            else if (label.Equals("machine_state", StringComparison.OrdinalIgnoreCase) ||
+                     label.Equals("operating_mode", StringComparison.OrdinalIgnoreCase))
             {
-                bool running = false;
-                if (val is string s)
-                {
-                    running = s.Equals("RUNNING", StringComparison.OrdinalIgnoreCase) ||
-                              s.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ||
-                              s.Equals("EXECUTE", StringComparison.OrdinalIgnoreCase);
-                }
-                else if (val is bool b)
+                var stdState = Standard.MachineToolStandards.ParseStandardState(val);
+                bool running = stdState is Standard.MachineToolStandards.MachineToolState.Active or Standard.MachineToolStandards.MachineToolState.Moving;
+
+                if (val is bool b)
                 {
                     running = b;
-                }
-                else if (TryExtractInt(val, out int code))
-                {
-                    running = code == 1 || code == 3;
                 }
 
                 UpdateMachineState(running, now);
