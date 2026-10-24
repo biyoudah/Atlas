@@ -91,7 +91,7 @@ public static class GrafanaDashboardGenerator
         {
             panels.Add(CreateStatPanel(
                 id: panelId++,
-                title: "Machine State / Operating Mode",
+                title: byLabel.ContainsKey("machine_state") ? "Machine State" : "Machine State / Operating Mode",
                 expr: $"opcua_operating_mode{{machine=\"{machineName}\"}} or opcua_machine_state{{machine=\"{machineName}\"}}",
                 x: 0, y: currentY, w: 6, h: 4,
                 datasource: datasource,

@@ -1,0 +1,218 @@
+{
+  "id": null,
+  "uid": "atlas-catalog",
+  "title": "umati International MachineTool Live (Atlas Engine)",
+  "tags": [
+    "opcua",
+    "atlas",
+    "umati",
+    "cnc",
+    "industry-4.0"
+  ],
+  "style": "dark",
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "refresh": "1s",
+  "schemaVersion": 38,
+  "version": 3,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Machine State / Operating Mode (umati OPC 40501)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "opcua_operating_mode{machine=\"umati_cell_01\"} or opcua_machine_state{machine=\"umati_cell_01\"} or (atlas_machine_connected{machine=\"umati_cell_01\"} == 1)",
+          "legendFormat": "{{node_id}}",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*[/]([^/]+)/;i=([0-9]+).*",
+            "renamePattern": "$1"
+          }
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": { "text": "AUTOMATIC / ACTIVE", "color": "green" },
+                "0": { "text": "STOPPED", "color": "yellow" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "gauge",
+      "title": "Feed Override Potentiometer (%)",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "opcua_feed_override{machine=\"umati_cell_01\"}",
+          "legendFormat": "{{node_id}}",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*[/]([^/]+)/;i=([0-9]+).*",
+            "renamePattern": "$1 ($2)"
+          }
+        }
+      ],
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 150,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 105, "color": "yellow" },
+              { "value": 125, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Active Monitored Items (WAN Subscription)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "atlas_collector_monitored_items_active{machine=\"umati_cell_01\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "QualityGuard Quarantined Nodes (Bruit Filtré)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "count(opcua_data_stale{machine=\"umati_cell_01\"} == 1) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 9999,
+                "result": { "text": "BRUIT ISOLÉ (OnlineAccess)", "color": "orange" }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "AUCUN DÉFAUT", "color": "green" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Feed Override Potentiometer History (1s Interval)",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [
+        {
+          "expr": "opcua_feed_override{machine=\"umati_cell_01\"}",
+          "legendFormat": "{{node_id}}",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": ".*[/]([^/]+)/;i=([0-9]+).*",
+            "renamePattern": "$1 (i=$2)"
+          }
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "min", "max"]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "showPoints": "auto",
+            "fillOpacity": 15
+          }
+        }
+      }
+    }
+  ]
+}
